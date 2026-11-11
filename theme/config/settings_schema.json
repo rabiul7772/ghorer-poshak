@@ -18,8 +18,7 @@
         "type": "text",
         "id": "rcb_phone",
         "label": "ফোন নম্বর",
-        "info": "যেমন 01XXXXXXXXX",
-        "default": ""
+        "info": "যেমন 01XXXXXXXXX"
       },
       {
         "type": "text",
