@@ -1,0 +1,13 @@
+{
+  "name": "ghorer-poshak-order",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/order.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.160.1"
+  }
+}
