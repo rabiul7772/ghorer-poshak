@@ -35,7 +35,9 @@
     {%- if wa != blank -%}
       <li><a href="https://wa.me/{{ wa }}" class="{{ p }}__app" data-channel="whatsapp" target="_blank" rel="noopener"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'whatsapp' %}</span><span class="{{ p }}__label">হোয়াটসঅ্যাপ</span></a></li>
     {%- endif -%}
-    {%- if settings.rcb_show_imo and phone_local != blank -%}
+    {%- if settings.rcb_show_imo and settings.rcb_imo_link != blank -%}
+      <li><a href="{{ settings.rcb_imo_link }}" class="{{ p }}__app" data-channel="imo" target="_blank" rel="noopener"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'imo' %}</span><span class="{{ p }}__label">ইমো</span></a></li>
+    {%- elsif settings.rcb_show_imo and phone_local != blank -%}
       <li><button type="button" class="{{ p }}__app" data-channel="imo" data-rcb-copy="{{ phone_local }}" data-rcb-copy-number="{{ phone_local }}" aria-label="ইমোর জন্য নম্বর কপি করুন"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'imo' %}</span><span class="{{ p }}__label"><span class="{{ p }}__idle">ইমো</span><span class="{{ p }}__done">কপি হয়েছে</span></span></button></li>
     {%- endif -%}
   </ul>

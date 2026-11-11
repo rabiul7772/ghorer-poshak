@@ -89,6 +89,39 @@
         "id": "rcb_order_endpoint",
         "label": "অর্ডার সার্ভার (ঐচ্ছিক)",
         "info": "খালি থাকলে কাস্টমার Shopify চেকআউট দিয়ে অর্ডার করবেন"
+      },
+      {
+        "type": "header",
+        "content": "সাইজ চার্ট"
+      },
+      {
+        "type": "paragraph",
+        "content": "ছবি না দিলে স্ট্যান্ডার্ড মাপের টেবিল দেখাবে। কোনো প্রোডাক্টের নিজস্ব চার্ট থাকলে প্রোডাক্টের 'সাইজ চার্ট' মেটাফিল্ডে দিন।"
+      },
+      {
+        "type": "image_picker",
+        "id": "rcb_size_chart_pant",
+        "label": "প্যান্টের সাইজ চার্ট"
+      },
+      {
+        "type": "image_picker",
+        "id": "rcb_size_chart_shirt",
+        "label": "শার্টের সাইজ চার্ট"
+      },
+      {
+        "type": "image_picker",
+        "id": "rcb_size_chart_tshirt",
+        "label": "টি-শার্টের সাইজ চার্ট"
+      },
+      {
+        "type": "header",
+        "content": "ইমো"
+      },
+      {
+        "type": "url",
+        "id": "rcb_imo_link",
+        "label": "ইমো প্রোফাইল লিংক (ঐচ্ছিক)",
+        "info": "ইমো অ্যাপ থেকে প্রোফাইল শেয়ার লিংক দিলে বাটনে চাপলে ইমো খুলবে; না দিলে নম্বর কপি হবে।"
       }
     ]
   },

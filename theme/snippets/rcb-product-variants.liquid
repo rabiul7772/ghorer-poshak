@@ -1,15 +1,55 @@
-{%- comment -%}
-  Size / colour picker for multi-variant products (shirts, pants, t-shirts).
+{%- doc -%}
+  Size / colour picker for multi-variant products (shirts, pants, t-shirts), styled as square boxes
+  (BD-shop convention): selected box gets a primary border and a corner tick; sold-out values are crossed out.
+  Size-like options ("Size", "সাইজ") start unselected so the buyer must choose one; ordering without a size
+  shows an inline error instead of adding the first variant. Other options (colour) start on the current variant.
   Lives inside the product form but outside [data-rcb-buy], so rcb-product.js cart repaints never wipe the choice.
   It only writes the variant id into [data-rcb-id-input], which rcb-product.js reads at submit time.
-  Params: product, current_variant
-{%- endcomment -%}
-<div class="rcb-vp" data-rcb-vp>
+
+  @param {object} product - The product
+  @param {object} current_variant - Variant from the URL (?variant=) or the first available one
+
+  @example
+  {% render 'rcb-product-variants', product: product, current_variant: current_variant %}
+{%- enddoc -%}
+{%- liquid
+  assign size_names = 'size,sizes,সাইজ,মাপ,waist,কোমর'
+  assign url_has_variant = false
+  if request.path contains 'variant=' or product.selected_variant
+    assign url_has_variant = true
+  endif
+  assign has_size = false
+  for option in product.options_with_values
+    assign oname = option.name | downcase | strip
+    if size_names contains oname
+      assign has_size = true
+    endif
+  endfor
+-%}
+<div class="rcb-vp" data-rcb-vp data-rcb-vp-preselected="{{ url_has_variant }}">
   {%- for option in product.options_with_values -%}
-    {%- assign opt_index = forloop.index0 -%}
-    <fieldset class="rcb-vp__group" data-rcb-vp-group="{{ opt_index }}">
+    {%- liquid
+      assign opt_index = forloop.index0
+      assign oname = option.name | downcase | strip
+      assign is_size = false
+      if size_names contains oname
+        assign is_size = true
+      endif
+      assign label = option.name
+      if is_size
+        assign label = 'সাইজ'
+      elsif oname == 'color' or oname == 'colour'
+        assign label = 'কালার'
+      endif
+      assign start_empty = false
+      if is_size and url_has_variant == false
+        assign start_empty = true
+      endif
+    -%}
+    <fieldset class="rcb-vp__group" data-rcb-vp-group="{{ opt_index }}"{% if is_size %} data-rcb-vp-size{% endif %}>
       <legend class="rcb-vp__label">
-        {{ option.name | escape }}: <span class="rcb-vp__current" data-rcb-vp-current>{{ option.selected_value | escape }}</span>
+        {{ label | escape }} বেছে নিন:
+        <span class="rcb-vp__current" data-rcb-vp-current>{% unless start_empty %}{{ option.selected_value | escape }}{% endunless %}</span>
       </legend>
       <div class="rcb-vp__values">
         {%- for value in option.values -%}
@@ -21,19 +61,65 @@
                 break
               endif
             endfor
+            assign on = false
+            if value == option.selected_value and start_empty == false
+              assign on = true
+            endif
           -%}
           <button
             type="button"
-            class="rcb-vp__btn{% if value == option.selected_value %} is-on{% endif %}{% unless any_available %} is-soldout{% endunless %}"
+            class="rcb-vp__btn{% if on %} is-on{% endif %}{% unless any_available %} is-soldout{% endunless %}"
             data-rcb-vp-value="{{ value | escape }}"
-            aria-pressed="{% if value == option.selected_value %}true{% else %}false{% endif %}"
-            {% unless any_available %}disabled aria-disabled="true"{% endunless %}
-          >{{ value | escape }}</button>
+            aria-pressed="{{ on }}"
+            {% unless any_available %}
+              disabled aria-disabled="true" title="স্টক শেষ"
+            {% endunless %}
+          >
+            {{- value | escape -}}
+            <span class="rcb-vp__tick" aria-hidden="true"><svg viewBox="0 0 12 12" focusable="false"><path d="M2.5 6.3 5 8.6l4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
         {%- endfor -%}
+        {%- if is_size -%}
+          <button type="button" class="rcb-vp__chart" data-rcb-vp-chart-open aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 8.5h17v7h-17zM7 8.5v3M10.5 8.5v4.5M14 8.5v3M17.5 8.5v4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
+            সাইজ চার্ট
+          </button>
+        {%- endif -%}
       </div>
+      {%- if is_size -%}
+        <p class="rcb-vp__error" data-rcb-vp-error role="alert" hidden>অর্ডার করার আগে আপনার সাইজটা বেছে নিন।</p>
+      {%- endif -%}
     </fieldset>
   {%- endfor -%}
 </div>
+
+{%- if has_size -%}
+  {%- liquid
+    assign ptype = product.type | downcase
+    assign chart_img = product.metafields.custom.size_chart.value
+    if chart_img == blank
+      if ptype contains 'pant' or ptype contains 'প্যান্ট'
+        assign chart_img = settings.rcb_size_chart_pant
+      elsif ptype contains 't-shirt' or ptype contains 'tshirt' or ptype contains 'টি-শার্ট'
+        assign chart_img = settings.rcb_size_chart_tshirt
+      elsif ptype contains 'shirt' or ptype contains 'শার্ট'
+        assign chart_img = settings.rcb_size_chart_shirt
+      endif
+    endif
+  -%}
+  <dialog class="rcb-vp__dialog" data-rcb-vp-chart aria-labelledby="rcb-vp-chart-h-{{ product.id }}">
+    <div class="rcb-vp__dialog-head">
+      <h2 class="rcb-vp__dialog-h" id="rcb-vp-chart-h-{{ product.id }}">সাইজ চার্ট</h2>
+      <button type="button" class="rcb-vp__dialog-x" data-rcb-vp-chart-close aria-label="বন্ধ করুন">×</button>
+    </div>
+    {%- if chart_img != blank -%}
+      {{ chart_img | image_url: width: 1000 | image_tag: widths: '480,720,1000', sizes: '(min-width: 750px) 560px, 92vw', alt: 'সাইজ চার্ট', class: 'rcb-vp__chart-img', loading: 'lazy' }}
+    {%- else -%}
+      {%- render 'rcb-product-size-table', type: ptype -%}
+    {%- endif -%}
+    <p class="rcb-vp__dialog-note">মাপ ইঞ্চিতে। সাইজ নিয়ে দ্বিধা থাকলে আমাদের হোয়াটসঅ্যাপ বা মেসেঞ্জারে জিজ্ঞেস করুন।</p>
+  </dialog>
+{%- endif -%}
 
 <script type="application/json" data-rcb-vp-data>
   {
@@ -55,25 +141,52 @@
 </script>
 
 <style>
-  .rcb-vp { display: grid; gap: 1rem; margin: 0 0 1.25rem; }
+  .rcb-vp { display: grid; gap: 1.125rem; margin: 0 0 1.25rem; }
   .rcb-vp__group { border: 0; margin: 0; padding: 0; min-width: 0; }
-  .rcb-vp__label { padding: 0; margin: 0 0 .5rem; font: 600 .9375rem/1.6 var(--rcb-font); color: var(--rcb-ink); }
-  .rcb-vp__current { font-weight: 400; color: var(--rcb-muted); }
-  .rcb-vp__values { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .rcb-vp__label { padding: 0; margin: 0 0 .625rem; font: 600 .9375rem/1.6 var(--rcb-font); color: var(--rcb-ink); }
+  .rcb-vp__current { font-weight: 600; color: var(--rcb-maroon); margin-inline-start: .25rem; }
+  .rcb-vp__values { display: flex; flex-wrap: wrap; gap: .625rem; }
   .rcb-vp__btn {
-    min-width: 3rem; min-height: 2.75rem; padding: .375rem 1rem;
-    border: 1.5px solid var(--rcb-line); border-radius: 999px;
+    position: relative; overflow: hidden;
+    min-width: 3.25rem; min-height: 2.875rem; padding: .375rem .875rem;
+    border: 1px solid var(--rcb-line); border-radius: 6px;
     background: var(--rcb-paper); color: var(--rcb-ink);
-    font: 500 .9375rem/1.4 var(--rcb-font); cursor: pointer;
-    transition: border-color .15s ease, background .15s ease, color .15s ease;
+    font: 600 .9375rem/1.3 var(--rcb-font); letter-spacing: .01em; cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease, color .15s ease;
   }
-  .rcb-vp__btn:hover { border-color: var(--rcb-maroon); color: var(--rcb-maroon); }
-  .rcb-vp__btn.is-on { background: var(--rcb-maroon); border-color: var(--rcb-maroon); color: #fff; }
+  .rcb-vp__btn:hover:not([disabled]) { border-color: var(--rcb-maroon); }
+  .rcb-vp__btn.is-on { border-color: var(--rcb-maroon); box-shadow: inset 0 0 0 1px var(--rcb-maroon); color: var(--rcb-maroon); background: var(--rcb-maroon-soft); }
+  .rcb-vp__tick {
+    position: absolute; inset-inline-end: 0; inset-block-end: 0; width: 1.125rem; height: 1.125rem;
+    display: none; align-items: flex-end; justify-content: flex-end; padding: 0 1px 1px 0;
+    background: linear-gradient(135deg, transparent 50%, var(--rcb-maroon) 50%); color: #fff;
+  }
+  .rcb-vp__tick svg { width: .5625rem; height: .5625rem; }
+  .rcb-vp__btn.is-on .rcb-vp__tick { display: inline-flex; }
   .rcb-vp__btn.is-unavailable:not(.is-on) { color: var(--rcb-muted); border-style: dashed; }
   .rcb-vp__btn.is-soldout, .rcb-vp__btn[disabled] {
-    color: var(--rcb-muted); background: var(--rcb-tint); border-color: var(--rcb-line);
-    text-decoration: line-through; cursor: not-allowed; opacity: .7;
+    color: var(--rcb-muted); background: var(--rcb-tint); cursor: not-allowed; opacity: .75;
+    background-image: linear-gradient(to top left, transparent calc(50% - .5px), var(--rcb-line) 50%, transparent calc(50% + .5px));
   }
+  .rcb-vp__chart {
+    display: inline-flex; align-items: center; gap: .375rem; min-height: 2.875rem; padding: .375rem .875rem;
+    border: 1px dashed var(--rcb-gold); border-radius: 6px; background: var(--rcb-gold-soft); color: var(--rcb-ink);
+    font: 600 .875rem/1.3 var(--rcb-font); cursor: pointer;
+  }
+  .rcb-vp__chart svg { width: 1.125rem; height: 1.125rem; color: var(--rcb-gold); }
+  .rcb-vp__chart:hover { border-style: solid; }
+  .rcb-vp__error { margin: .5rem 0 0; color: #b3261e; font: 500 .875rem/1.5 var(--rcb-font); }
+  .rcb-vp__group.is-invalid .rcb-vp__btn:not([disabled]) { border-color: #b3261e; }
+  .rcb-vp__group.is-shake .rcb-vp__values { animation: rcb-vp-shake .4s ease; }
+  @keyframes rcb-vp-shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+  @media (prefers-reduced-motion: reduce) { .rcb-vp__group.is-shake .rcb-vp__values { animation: none; } }
+  .rcb-vp__dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 1rem 1rem 1.25rem; border: 0; border-radius: var(--rcb-radius); background: var(--rcb-paper); color: var(--rcb-ink); box-shadow: var(--rcb-shadow); }
+  .rcb-vp__dialog::backdrop { background: rgb(24 35 31 / .55); }
+  .rcb-vp__dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+  .rcb-vp__dialog-h { margin: 0; font: 600 1.125rem/1.5 var(--rcb-font); }
+  .rcb-vp__dialog-x { width: 2.5rem; height: 2.5rem; border: 0; border-radius: 999px; background: var(--rcb-tint); color: var(--rcb-ink); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+  .rcb-vp__chart-img { display: block; width: 100%; height: auto; border-radius: 8px; }
+  .rcb-vp__dialog-note { margin: .75rem 0 0; color: var(--rcb-muted); font: 400 .8125rem/1.6 var(--rcb-font); }
   .rcb-buy__itemvariant { display: block; font-size: .875rem; color: var(--rcb-muted); }
 </style>
 
@@ -101,9 +214,10 @@
         return on ? on.dataset.rcbVpValue : null;
       });
     };
+    var complete = function () { return selected().every(function (o) { return o !== null; }); };
     var match = function (opts) {
       return variants.find(function (v) {
-        return v.options.every(function (o, i) { return o === opts[i]; });
+        return v.options.every(function (o, i) { return opts[i] === null || o === opts[i]; });
       });
     };
     var current = variants.find(function (v) { return String(v.id) === String(idInput && idInput.value); }) || variants[0];
@@ -117,8 +231,10 @@
           btn.setAttribute('aria-pressed', on ? 'true' : 'false');
           var trial = opts.slice();
           trial[gi] = btn.dataset.rcbVpValue;
-          var v = match(trial);
-          btn.classList.toggle('is-unavailable', !v || !v.available);
+          var v = variants.find(function (x) {
+            return x.available && x.options.every(function (o, i) { return trial[i] === null || o === trial[i]; });
+          });
+          btn.classList.toggle('is-unavailable', !v);
         });
         var label = g.querySelector('[data-rcb-vp-current]');
         if (label) label.textContent = opts[gi] || '';
@@ -134,7 +250,7 @@
       var price = buy.querySelector('.rcb-buy__itemprice');
       if (price) price.innerHTML = money(v.price) + compare;
       var title = buy.querySelector('[data-rcb-variant-title]');
-      if (title) title.textContent = v.title;
+      if (title) title.textContent = complete() ? v.title : '';
       var buyNow = buy.querySelector('[data-rcb-buy-now]');
       var add = buy.querySelector('[data-rcb-add]');
       if (buyNow) {
@@ -152,6 +268,14 @@
       }
     };
 
+    var clearError = function () {
+      groups.forEach(function (g) {
+        g.classList.remove('is-invalid', 'is-shake');
+        var err = g.querySelector('[data-rcb-vp-error]');
+        if (err) err.hidden = true;
+      });
+    };
+
     var apply = function (v, fromUser) {
       if (!v) return;
       current = v;
@@ -159,17 +283,18 @@
       root.dataset.rcbValue = String(v.price / 100);
       paintButtons();
       paintBuy(v, fromUser);
-      if (fromUser) {
+      if (fromUser && complete()) {
         var url = new URL(window.location.href);
         url.searchParams.set('variant', v.id);
         window.history.replaceState({}, '', url.toString());
-        if (v.media) {
-          var slide = root.querySelector('[data-rcb-track] [data-rcb-image-id="' + v.media + '"]');
-          var slides = slide ? Array.prototype.slice.call(root.querySelector('[data-rcb-track]').children) : [];
-          var index = slide ? slides.indexOf(slide.closest('.rcb-hero__slide')) : -1;
-          var thumb = index > -1 && root.querySelector('[data-rcb-thumbs] [data-rcb-jump="' + index + '"]');
-          if (thumb) thumb.click();
-        }
+      }
+      if (fromUser && v.media) {
+        var track = root.querySelector('[data-rcb-track]');
+        var slide = track && track.querySelector('[data-rcb-image-id="' + v.media + '"]');
+        var slides = slide ? Array.prototype.slice.call(track.children) : [];
+        var index = slide ? slides.indexOf(slide.closest('.rcb-hero__slide')) : -1;
+        var thumb = index > -1 && root.querySelector('[data-rcb-thumbs] [data-rcb-jump="' + index + '"]');
+        if (thumb) thumb.click();
       }
     };
 
@@ -178,25 +303,61 @@
       if (!btn || btn.disabled) return;
       var group = btn.closest('[data-rcb-vp-group]');
       var gi = groups.indexOf(group);
+      group.querySelectorAll('.rcb-vp__btn').forEach(function (b) { b.classList.toggle('is-on', b === btn); });
       var opts = selected();
-      opts[gi] = btn.dataset.rcbVpValue;
       var v = match(opts);
-      if (!v || !v.available) {
-        /* Keep the clicked value and fall back to the nearest available combination. */
-        v = variants.find(function (x) { return x.available && x.options[gi] === opts[gi]; }) || v ||
-            variants.find(function (x) { return x.options[gi] === opts[gi]; });
+      if (complete() && (!v || !v.available)) {
+        /* Keep the clicked value and move the other options to the nearest available combination. */
+        v = variants.find(function (x) { return x.available && x.options[gi] === opts[gi]; }) || v;
+        if (v) {
+          groups.forEach(function (g, i) {
+            g.querySelectorAll('.rcb-vp__btn').forEach(function (b) { b.classList.toggle('is-on', b.dataset.rcbVpValue === v.options[i]); });
+          });
+        }
       }
-      if (!v) return;
-      groups.forEach(function (g, i) {
-        g.querySelectorAll('.rcb-vp__btn').forEach(function (b) { b.classList.toggle('is-on', b.dataset.rcbVpValue === v.options[i]); });
-      });
-      apply(v, true);
+      clearError();
+      apply(v || current, true);
     });
+
+    /* Block ordering until every option (the size) is chosen. Capture phase on the root runs before
+       rcb-product.js's own submit handling on the form. */
+    root.addEventListener('submit', function (event) {
+      if (complete()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      var missing = groups.find(function (g) { return !g.querySelector('.rcb-vp__btn.is-on'); });
+      if (!missing) return;
+      missing.classList.add('is-invalid');
+      missing.classList.remove('is-shake');
+      void missing.offsetWidth;
+      missing.classList.add('is-shake');
+      var err = missing.querySelector('[data-rcb-vp-error]');
+      if (err) err.hidden = false;
+      missing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var first = missing.querySelector('.rcb-vp__btn:not([disabled])');
+      if (first) first.focus({ preventScroll: true });
+    }, true);
+
+    /* Size chart dialog */
+    var chart = root.querySelector('[data-rcb-vp-chart]');
+    if (chart) {
+      root.querySelectorAll('[data-rcb-vp-chart-open]').forEach(function (b) {
+        b.addEventListener('click', function () { if (chart.showModal) chart.showModal(); else chart.setAttribute('open', ''); });
+      });
+      chart.querySelectorAll('[data-rcb-vp-chart-close]').forEach(function (b) {
+        b.addEventListener('click', function () { chart.close(); });
+      });
+      chart.addEventListener('click', function (event) { if (event.target === chart) chart.close(); });
+    }
 
     /* rcb-product.js swaps the buy box markup after a cart write; re-apply the chosen variant to it. */
     var buy = root.querySelector('[data-rcb-buy]');
     if (buy) new MutationObserver(function () { paintBuy(current, false); }).observe(buy, { childList: true });
 
     paintButtons();
+    if (!complete()) {
+      var startTitle = root.querySelector('[data-rcb-buy] [data-rcb-variant-title]');
+      if (startTitle) startTitle.textContent = '';
+    }
   })();
 </script>
