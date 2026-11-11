@@ -1,0 +1,87 @@
+{%- doc -%}
+  Ghorer Poshak footer social icons: Facebook, Instagram and TikTok links read from the
+  "Ghorer Poshak" theme settings (rcb_facebook, rcb_instagram, rcb_tiktok), so they stay in sync
+  with the contact cards elsewhere on the site.
+{%- enddoc -%}
+
+{%- liquid
+  assign social_keys = 'facebook,instagram,tiktok' | split: ','
+  assign has_any = false
+  for key in social_keys
+    assign setting_id = 'rcb_' | append: key
+    if settings[setting_id] != blank
+      assign has_any = true
+    endif
+  endfor
+-%}
+
+{%- if has_any -%}
+  <div class="rcb-footer-social" {{ block.shopify_attributes }}>
+    {%- for key in social_keys -%}
+      {%- assign setting_id = 'rcb_' | append: key -%}
+      {%- assign link_url = settings[setting_id] -%}
+      {%- if link_url != blank -%}
+        <div class="social-icons__icon-wrapper">
+          <a href="{{ link_url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ key | capitalize }}">
+            <svg
+              class="social-icons__icon icon-default"
+              aria-hidden="true"
+              focusable="false"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+            >
+              {%- render 'icon', icon: key -%}
+            </svg>
+          </a>
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .rcb-footer-social {
+    display: flex;
+    gap: var(--gap-sm);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  @media screen and (min-width: 750px) {
+    .rcb-footer-social {
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+    }
+  }
+
+  .rcb-footer-social .social-icons__icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+  }
+
+  .rcb-footer-social a {
+    display: flex;
+    color: var(--color-utilities, var(--color-foreground-muted));
+  }
+
+  .rcb-footer-social a:hover {
+    color: var(--color-foreground);
+  }
+
+  .rcb-footer-social .social-icons__icon {
+    display: block;
+    flex-shrink: 0;
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Social links (GP)",
+  "tag": null
+}
+{% endschema %}

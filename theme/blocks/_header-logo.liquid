@@ -51,6 +51,12 @@
     assign inverse_logo_style = '--header-logo-image-width: ' | append: inverse_logo_width | append: 'px;' | append: '--header-logo-image-width-mobile: ' | append: inverse_logo_width_mobile | append: 'px; --header-logo-image-height: ' | append: settings.logo_height | append: 'px; --header-logo-image-height-mobile: ' | append: settings.logo_height_mobile | append: 'px;'
   %}
 
+  {%- if settings.logo == blank -%}
+    {%- comment -%} Ghorer Poshak: text wordmark (styled by .header-logo__type) when no logo image is set. {%- endcomment -%}
+    <span class="header-logo__image-container header-logo__image-container--original" data-testid="header-logo">
+      <span class="header-logo__type">{{ shop.name | escape }}</span>
+    </span>
+  {%- else -%}
   <span
     {% if use_inverse_logo %}
       class="header-logo__solid-header-image-container"
@@ -82,6 +88,7 @@
       %}
     </span>
   {% endif %}
+  {%- endif -%}
 </a>
 
 {% stylesheet %}
@@ -139,6 +146,26 @@
 
   .header-logo__transparent-header-image-container {
     display: var(--header-logo-inverse-display, none);
+  }
+
+  .header-logo__type {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    line-height: 1;
+    font-family: var(--font-body--family);
+    font-style: var(--font-body--style);
+    font-weight: 600;
+    font-size: 1.125rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--rcb-maroon, currentColor);
+  }
+
+  @media screen and (max-width: 749px) {
+    .header-logo__type {
+      font-size: 1rem;
+    }
   }
 {% endstylesheet %}
 

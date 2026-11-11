@@ -12,6 +12,7 @@
 
 <div class="section-background color-custom-{{ section.id }}"></div>
 <aside
+  data-rcb-ticker
   class="announcement-bar spacing-style section section--{{ section.settings.section_width }} color-custom-{{ section.id }}"
   style="{% render 'spacing-padding', settings: section.settings %}; --border-bottom-width: {{ section.settings.divider_width }}px;{% if section.settings.divider_color != blank %} --color-border: {{ section.settings.divider_color }};{% endif %}"
 >
@@ -38,6 +39,21 @@
       {% content_for 'blocks' %}
     </div>
   </announcement-bar-component>
+  <button
+    type="button"
+    class="announcement-bar__pause"
+    data-rcb-ticker-pause
+    aria-label="ব্যানার থামান"
+    aria-pressed="false"
+    hidden
+  >
+    <svg class="announcement-bar__pause-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M4 3h3v10H4zm5 0h3v10H9z"/>
+    </svg>
+    <svg class="announcement-bar__play-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="m5 3 8 5-8 5z"/>
+    </svg>
+  </button>
 </aside>
 
 {% stylesheet %}
@@ -125,6 +141,75 @@
   .announcement-bar__link {
     position: absolute;
     inset: 0;
+  }
+
+  /* Ghorer Poshak: continuous ticker (assets/rcb-announcement.js drives the animation state). */
+  .announcement-bar[data-rcb-ticker] {
+    position: relative;
+  }
+
+  .announcement-bar__text:first-child {
+    margin: 0;
+  }
+
+  .announcement-bar__copy {
+    white-space: nowrap;
+  }
+
+  .announcement-bar__copy[aria-hidden] {
+    display: none;
+  }
+
+  .announcement-bar__slider:focus-within .announcement-bar__track {
+    animation-play-state: paused;
+  }
+
+  .announcement-bar__pause {
+    position: absolute;
+    inset-inline-end: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 100%;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .announcement-bar__pause[hidden],
+  .announcement-bar__play-icon,
+  .announcement-bar__pause[aria-pressed='true'] .announcement-bar__pause-icon {
+    display: none;
+  }
+
+  .announcement-bar__pause[aria-pressed='true'] .announcement-bar__play-icon {
+    display: block;
+  }
+
+  .announcement-bar__pause:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -4px;
+  }
+
+  @media (hover: hover) {
+    .announcement-bar__slider:hover .announcement-bar__track {
+      animation-play-state: paused;
+    }
+
+    .announcement-bar__pause:hover {
+      background: rgb(255 255 255 / 0.12);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .announcement-bar__copy {
+      white-space: normal;
+    }
   }
 {% endstylesheet %}
 

@@ -1,0 +1,74 @@
+{%- comment -%}
+  Ghorer Poshak /collections page. One block per top-level menu link (department);
+  its child collection links become cards. A department with no children shows itself as a card.
+  With no collection links in the menu, every store collection is listed in one block.
+{%- endcomment -%}
+{%- liquid
+  assign menu = linklists[section.settings.menu]
+  assign has_depts = false
+  for link in menu.links
+    if link.type == 'collection_link' or link.links.size > 0
+      assign has_depts = true
+      break
+    endif
+  endfor
+-%}
+<div class="rcb rcb--index">
+  <div class="rcb-wrap rcbi-top">
+    <nav aria-label="breadcrumb">
+      <ol class="rcb-crumbs">
+        <li><a href="{{ routes.root_url }}">হোম</a></li>
+        <li><span aria-current="page">{{ section.settings.heading | escape }}</span></li>
+      </ol>
+    </nav>
+    <h1 class="rcbi-h1">{{ section.settings.heading | escape }}</h1>
+    {%- if section.settings.subheading != blank -%}
+      <p class="rcbi-sub">{{ section.settings.subheading | escape }}</p>
+    {%- endif -%}
+
+    {%- if has_depts -%}
+      {%- for link in menu.links -%}
+        {%- unless link.type == 'collection_link' or link.links.size > 0 -%}{%- continue -%}{%- endunless -%}
+        <section class="rcb-block rcbi-department">
+          <h2 class="rcb-h2">
+            <a class="rcbi-dept" href="{{ link.url }}">{{ link.title | escape }} <span aria-hidden="true">→</span></a>
+          </h2>
+          <div class="rcb-cards">
+            {%- if link.links.size > 0 -%}
+              {%- for child in link.links -%}
+                {%- if child.type == 'collection_link' -%}
+                  {%- render 'rcb-collection-tile', tile: child.object, title: child.title -%}
+                {%- endif -%}
+              {%- endfor -%}
+            {%- else -%}
+              {%- render 'rcb-collection-tile', tile: link.object, title: link.title -%}
+            {%- endif -%}
+          </div>
+        </section>
+      {%- endfor -%}
+    {%- else -%}
+      <section class="rcb-block rcbi-department">
+        <div class="rcb-cards">
+          {%- for c in collections -%}
+            {%- unless c.handle == 'frontpage' or c.all_products_count == 0 -%}
+              {%- render 'rcb-collection-tile', tile: c, title: c.title -%}
+            {%- endunless -%}
+          {%- endfor -%}
+        </div>
+      </section>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "GP collections list",
+  "tag": "section",
+  "class": "rcb-section rcb-section--collections-list",
+  "settings": [
+    { "type": "link_list", "id": "menu", "label": "ক্যাটাগরির মেনু", "default": "main-menu" },
+    { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "সব ক্যাটাগরি" },
+    { "type": "text", "id": "subheading", "label": "উপশিরোনাম", "default": "যেটা খুঁজছেন সেই ক্যাটাগরিতে চাপ দিন।" }
+  ]
+}
+{% endschema %}

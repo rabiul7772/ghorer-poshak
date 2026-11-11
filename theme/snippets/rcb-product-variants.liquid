@@ -1,0 +1,202 @@
+{%- comment -%}
+  Size / colour picker for multi-variant products (shirts, pants, t-shirts).
+  Lives inside the product form but outside [data-rcb-buy], so rcb-product.js cart repaints never wipe the choice.
+  It only writes the variant id into [data-rcb-id-input], which rcb-product.js reads at submit time.
+  Params: product, current_variant
+{%- endcomment -%}
+<div class="rcb-vp" data-rcb-vp>
+  {%- for option in product.options_with_values -%}
+    {%- assign opt_index = forloop.index0 -%}
+    <fieldset class="rcb-vp__group" data-rcb-vp-group="{{ opt_index }}">
+      <legend class="rcb-vp__label">
+        {{ option.name | escape }}: <span class="rcb-vp__current" data-rcb-vp-current>{{ option.selected_value | escape }}</span>
+      </legend>
+      <div class="rcb-vp__values">
+        {%- for value in option.values -%}
+          {%- liquid
+            assign any_available = false
+            for v in product.variants
+              if v.options[opt_index] == value and v.available
+                assign any_available = true
+                break
+              endif
+            endfor
+          -%}
+          <button
+            type="button"
+            class="rcb-vp__btn{% if value == option.selected_value %} is-on{% endif %}{% unless any_available %} is-soldout{% endunless %}"
+            data-rcb-vp-value="{{ value | escape }}"
+            aria-pressed="{% if value == option.selected_value %}true{% else %}false{% endif %}"
+            {% unless any_available %}disabled aria-disabled="true"{% endunless %}
+          >{{ value | escape }}</button>
+        {%- endfor -%}
+      </div>
+    </fieldset>
+  {%- endfor -%}
+</div>
+
+<script type="application/json" data-rcb-vp-data>
+  {
+    "moneyFormat": {{ shop.money_format | json }},
+    "variants": [
+      {%- for v in product.variants -%}
+        {
+          "id": {{ v.id }},
+          "title": {{ v.title | json }},
+          "options": {{ v.options | json }},
+          "price": {{ v.price }},
+          "compare": {{ v.compare_at_price | default: 0 }},
+          "available": {{ v.available | json }},
+          "media": {{ v.featured_media.id | default: 0 }}
+        }{% unless forloop.last %},{% endunless %}
+      {%- endfor -%}
+    ]
+  }
+</script>
+
+<style>
+  .rcb-vp { display: grid; gap: 1rem; margin: 0 0 1.25rem; }
+  .rcb-vp__group { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .rcb-vp__label { padding: 0; margin: 0 0 .5rem; font: 600 .9375rem/1.6 var(--rcb-font); color: var(--rcb-ink); }
+  .rcb-vp__current { font-weight: 400; color: var(--rcb-muted); }
+  .rcb-vp__values { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .rcb-vp__btn {
+    min-width: 3rem; min-height: 2.75rem; padding: .375rem 1rem;
+    border: 1.5px solid var(--rcb-line); border-radius: 999px;
+    background: var(--rcb-paper); color: var(--rcb-ink);
+    font: 500 .9375rem/1.4 var(--rcb-font); cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .rcb-vp__btn:hover { border-color: var(--rcb-maroon); color: var(--rcb-maroon); }
+  .rcb-vp__btn.is-on { background: var(--rcb-maroon); border-color: var(--rcb-maroon); color: #fff; }
+  .rcb-vp__btn.is-unavailable:not(.is-on) { color: var(--rcb-muted); border-style: dashed; }
+  .rcb-vp__btn.is-soldout, .rcb-vp__btn[disabled] {
+    color: var(--rcb-muted); background: var(--rcb-tint); border-color: var(--rcb-line);
+    text-decoration: line-through; cursor: not-allowed; opacity: .7;
+  }
+  .rcb-buy__itemvariant { display: block; font-size: .875rem; color: var(--rcb-muted); }
+</style>
+
+<script>
+  (function () {
+    var script = document.currentScript;
+    var root = script && script.closest('[data-rcb-root]');
+    if (!root) return;
+    var picker = root.querySelector('[data-rcb-vp]');
+    var dataEl = root.querySelector('[data-rcb-vp-data]');
+    if (!picker || !dataEl) return;
+    var data = JSON.parse(dataEl.textContent);
+    var variants = data.variants;
+    var groups = Array.prototype.slice.call(picker.querySelectorAll('[data-rcb-vp-group]'));
+    var idInput = root.querySelector('[data-rcb-id-input]');
+
+    var money = function (cents) {
+      var amount = cents / 100;
+      var plain = (amount % 1 === 0 ? amount.toLocaleString('en-US') : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      return String(data.moneyFormat || '{{amount}}').replace(/\{\{\s*\w+\s*\}\}/, plain);
+    };
+    var selected = function () {
+      return groups.map(function (g) {
+        var on = g.querySelector('.rcb-vp__btn.is-on');
+        return on ? on.dataset.rcbVpValue : null;
+      });
+    };
+    var match = function (opts) {
+      return variants.find(function (v) {
+        return v.options.every(function (o, i) { return o === opts[i]; });
+      });
+    };
+    var current = variants.find(function (v) { return String(v.id) === String(idInput && idInput.value); }) || variants[0];
+
+    var paintButtons = function () {
+      var opts = selected();
+      groups.forEach(function (g, gi) {
+        g.querySelectorAll('.rcb-vp__btn').forEach(function (btn) {
+          var on = btn.dataset.rcbVpValue === opts[gi];
+          btn.classList.toggle('is-on', on);
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          var trial = opts.slice();
+          trial[gi] = btn.dataset.rcbVpValue;
+          var v = match(trial);
+          btn.classList.toggle('is-unavailable', !v || !v.available);
+        });
+        var label = g.querySelector('[data-rcb-vp-current]');
+        if (label) label.textContent = opts[gi] || '';
+      });
+    };
+
+    var paintBuy = function (v, resetAdded) {
+      var compare = v.compare > v.price ? ' <s class="rcb-compare">' + money(v.compare) + '</s>' : '';
+      var row = root.querySelector('[data-rcb-price-row]');
+      if (row) row.innerHTML = '<span class="rcb-price">' + money(v.price) + '</span>' + compare;
+      var buy = root.querySelector('[data-rcb-buy]');
+      if (!buy) return;
+      var price = buy.querySelector('.rcb-buy__itemprice');
+      if (price) price.innerHTML = money(v.price) + compare;
+      var title = buy.querySelector('[data-rcb-variant-title]');
+      if (title) title.textContent = v.title;
+      var buyNow = buy.querySelector('[data-rcb-buy-now]');
+      var add = buy.querySelector('[data-rcb-add]');
+      if (buyNow) {
+        buyNow.disabled = !v.available;
+        var lbl = buyNow.querySelector('[data-rcb-buy-label]');
+        if (lbl) lbl.textContent = v.available ? 'এখনই অর্ডার করুন' : 'স্টক শেষ';
+        var arrow = buyNow.querySelector('.rcb-btn__arrow');
+        if (arrow) arrow.hidden = !v.available;
+      }
+      if (add) { add.hidden = !v.available; add.disabled = !v.available; }
+      if (resetAdded) {
+        var added = buy.querySelector('[data-rcb-added]');
+        if (added) added.hidden = true;
+        buy.querySelectorAll('[data-rcb-precart]').forEach(function (el) { el.hidden = false; });
+      }
+    };
+
+    var apply = function (v, fromUser) {
+      if (!v) return;
+      current = v;
+      if (idInput) idInput.value = v.id;
+      root.dataset.rcbValue = String(v.price / 100);
+      paintButtons();
+      paintBuy(v, fromUser);
+      if (fromUser) {
+        var url = new URL(window.location.href);
+        url.searchParams.set('variant', v.id);
+        window.history.replaceState({}, '', url.toString());
+        if (v.media) {
+          var slide = root.querySelector('[data-rcb-track] [data-rcb-image-id="' + v.media + '"]');
+          var slides = slide ? Array.prototype.slice.call(root.querySelector('[data-rcb-track]').children) : [];
+          var index = slide ? slides.indexOf(slide.closest('.rcb-hero__slide')) : -1;
+          var thumb = index > -1 && root.querySelector('[data-rcb-thumbs] [data-rcb-jump="' + index + '"]');
+          if (thumb) thumb.click();
+        }
+      }
+    };
+
+    picker.addEventListener('click', function (event) {
+      var btn = event.target.closest('.rcb-vp__btn');
+      if (!btn || btn.disabled) return;
+      var group = btn.closest('[data-rcb-vp-group]');
+      var gi = groups.indexOf(group);
+      var opts = selected();
+      opts[gi] = btn.dataset.rcbVpValue;
+      var v = match(opts);
+      if (!v || !v.available) {
+        /* Keep the clicked value and fall back to the nearest available combination. */
+        v = variants.find(function (x) { return x.available && x.options[gi] === opts[gi]; }) || v ||
+            variants.find(function (x) { return x.options[gi] === opts[gi]; });
+      }
+      if (!v) return;
+      groups.forEach(function (g, i) {
+        g.querySelectorAll('.rcb-vp__btn').forEach(function (b) { b.classList.toggle('is-on', b.dataset.rcbVpValue === v.options[i]); });
+      });
+      apply(v, true);
+    });
+
+    /* rcb-product.js swaps the buy box markup after a cart write; re-apply the chosen variant to it. */
+    var buy = root.querySelector('[data-rcb-buy]');
+    if (buy) new MutationObserver(function () { paintBuy(current, false); }).observe(buy, { childList: true });
+
+    paintButtons();
+  })();
+</script>

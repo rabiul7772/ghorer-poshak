@@ -1,0 +1,42 @@
+{%- comment -%}
+  Phone + social + messaging apps card. All values come from theme settings (Ghorer Poshak group).
+  Params: prefix — 'rcb-contact' (default, page sections) or 'rcb-drawer' (header phone drawer)
+{%- endcomment -%}
+{%- liquid
+  assign p = prefix | default: 'rcb-contact'
+  assign phone_local = settings.rcb_phone | remove: ' ' | remove: '-' | remove: '+'
+  if phone_local.size == 13
+    assign phone_local = phone_local | slice: 2, 11
+  endif
+  assign phone_intl = phone_local | slice: 1, 10 | prepend: '+880'
+  assign wa = settings.rcb_whatsapp | default: phone_local | remove: ' ' | remove: '-' | remove: '+'
+  if wa.size == 11
+    assign wa = wa | slice: 1, 10 | prepend: '880'
+  endif
+-%}
+<div class="{{ p }}__card">
+  <div class="{{ p }}__top">
+    {%- if phone_local != blank -%}
+      <a class="{{ p }}__num" href="tel:{{ phone_intl }}" data-channel="phone">
+        <span class="{{ p }}__numicon" aria-hidden="true">{% render 'rcb-icon', name: 'phone' %}</span>
+        <span class="{{ p }}__numtext">{% render 'rcb-bn', text: phone_local %}</span>
+      </a>
+    {%- endif -%}
+    <ul class="{{ p }}__socials" role="list">
+      {%- if settings.rcb_facebook != blank -%}<li><a href="{{ settings.rcb_facebook }}" class="{{ p }}__social" data-channel="facebook" target="_blank" rel="noopener" aria-label="ফেসবুক পেজ">{% render 'rcb-icon', name: 'facebook' %}</a></li>{%- endif -%}
+      {%- if settings.rcb_instagram != blank -%}<li><a href="{{ settings.rcb_instagram }}" class="{{ p }}__social" data-channel="instagram" target="_blank" rel="noopener" aria-label="ইনস্টাগ্রাম">{% render 'rcb-icon', name: 'instagram' %}</a></li>{%- endif -%}
+      {%- if settings.rcb_tiktok != blank -%}<li><a href="{{ settings.rcb_tiktok }}" class="{{ p }}__social" data-channel="tiktok" target="_blank" rel="noopener" aria-label="টিকটক">{% render 'rcb-icon', name: 'tiktok' %}</a></li>{%- endif -%}
+    </ul>
+  </div>
+  <ul class="{{ p }}__apps" role="list">
+    {%- if settings.rcb_messenger != blank -%}
+      <li><a href="{{ settings.rcb_messenger }}" class="{{ p }}__app" data-channel="messenger" target="_blank" rel="noopener"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'messenger' %}</span><span class="{{ p }}__label">মেসেঞ্জার</span></a></li>
+    {%- endif -%}
+    {%- if wa != blank -%}
+      <li><a href="https://wa.me/{{ wa }}" class="{{ p }}__app" data-channel="whatsapp" target="_blank" rel="noopener"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'whatsapp' %}</span><span class="{{ p }}__label">হোয়াটসঅ্যাপ</span></a></li>
+    {%- endif -%}
+    {%- if settings.rcb_show_imo and phone_local != blank -%}
+      <li><button type="button" class="{{ p }}__app" data-channel="imo" data-rcb-copy="{{ phone_local }}" data-rcb-copy-number="{{ phone_local }}" aria-label="ইমোর জন্য নম্বর কপি করুন"><span class="{{ p }}__icon" aria-hidden="true">{% render 'rcb-icon', name: 'imo' %}</span><span class="{{ p }}__label"><span class="{{ p }}__idle">ইমো</span><span class="{{ p }}__done">কপি হয়েছে</span></span></button></li>
+    {%- endif -%}
+  </ul>
+</div>

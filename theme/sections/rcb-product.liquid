@@ -1,0 +1,460 @@
+{%- comment -%}
+  Ghorer Poshak product landing page — rebuilt from the reference storefront.
+  Behaviour lives in assets/rcb-product.js (gallery, buy box, attach, cart repaint),
+  assets/rcb-image-viewer.js (fullscreen viewer) and snippets/rcb-product-variants.liquid
+  (size/colour picker for multi-variant products).
+
+  Metafields (all optional):
+    product.metafields.custom.sold_count  number_integer
+    product.metafields.custom.reasons     list.single_line_text_field
+    product.metafields.custom.summary     multi_line_text_field
+    product.metafields.custom.specs       list.single_line_text_field  ("লেবেল: মান")
+    product.metafields.custom.faq         multi_line_text_field        (one "প্রশ্ন | উত্তর" per line)
+    product.metafields.custom.attach      list.product_reference
+    shop.metafields.custom.reviews        list.file_reference (review screenshots)
+{%- endcomment -%}
+{%- liquid
+  assign current_variant = product.selected_or_first_available_variant
+  assign single = product.has_only_default_variant
+
+  assign primary = nil
+  assign broad = nil
+  assign primary_count = 1000000
+  assign broad_count = -1
+  for c in product.collections
+    if c.handle == 'frontpage' or c.handle == 'all'
+      continue
+    endif
+    if c.products_count < primary_count
+      assign primary = c
+      assign primary_count = c.products_count
+    endif
+    if c.products_count > broad_count
+      assign broad = c
+      assign broad_count = c.products_count
+    endif
+  endfor
+  if broad and primary and broad.id == primary.id
+    assign broad = nil
+  endif
+
+  assign return_q = 'পছন্দ না হলে রিটার্ন করা যাবে?'
+  assign return_a = 'অবশ‍্যই রিটার্ন করা যাবে। প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন। পছন্দ না হলে শুধুমাত্র ডেলিভারি চার্জ দিয়ে সঙ্গে সঙ্গে রিটার্ন করে দিবেন।'
+  assign cod_a = 'প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন। পছন্দ না হলে শুধুমাত্র ডেলিভারি চার্জ দিয়ে সঙ্গে সঙ্গে রিটার্ন করে দিবেন।'
+
+  assign held_line = nil
+  if single
+    for item in cart.items
+      if item.variant_id == current_variant.id
+        assign held_line = item
+        break
+      endif
+    endfor
+  endif
+
+  assign images = product.media | where: 'media_type', 'image'
+  assign attach_list = product.metafields.custom.attach.value
+-%}
+
+{%- capture expand_icon -%}
+  <span class="rcb-image-expand"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6"/></svg><span class="rcb-sr">বড় করে দেখুন</span></span>
+{%- endcapture -%}
+{%- capture shield_icon -%}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5 20 6.5v5c0 4.6-3.2 7.9-8 9.4-4.8-1.5-8-4.8-8-9.4v-5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.6 12.1 11 14.5l4.4-4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endcapture -%}
+
+{%- comment -%} Complementary-recommendations render: only the attach region is consumed by the client. {%- endcomment -%}
+{%- if recommendations.performed? -%}
+  <div data-rcb-attach-region>
+    {%- if recommendations.products_count > 0 -%}
+      {%- render 'rcb-product-attach', products: recommendations.products, current: product -%}
+    {%- endif -%}
+  </div>
+{%- else -%}
+
+<div
+  class="rcb rcb--landing"
+  id="rcb-{{ section.id }}"
+  data-rcb-root
+  data-rcb-section="{{ section.id }}"
+  data-rcb-pid="{{ product.id }}"
+  data-rcb-handle="{{ product.handle }}"
+  data-rcb-category="{{ primary.title | escape }}"
+  data-rcb-value="{{ current_variant.price | divided_by: 100 }}"
+  data-rcb-currency="{{ cart.currency.iso_code }}"
+>
+  <div class="rcb-wrap rcbl-shell rcbl-top">
+    <div class="rcbl-col-media" data-rcb-image-gallery>
+      <div class="rcb-hero" id="rcb-hero-{{ section.id }}">
+        <div class="rcb-hero__track" data-rcb-track>
+          {%- for img in images -%}
+            <div class="rcb-hero__slide">
+              <a class="rcb-image-open" href="{{ img | image_url: width: 2400 }}" data-rcb-image-open data-rcb-image-primary data-rcb-image-id="{{ img.id }}">
+                {%- if forloop.first -%}
+                  {{ img | image_url: width: 900 | image_tag: widths: '450,600,750,900,1200', sizes: '(min-width: 990px) 560px, 100vw', alt: product.title, loading: 'eager', fetchpriority: 'high' }}
+                {%- else -%}
+                  {{ img | image_url: width: 900 | image_tag: widths: '450,600,750,900,1200', sizes: '(min-width: 990px) 560px, 100vw', alt: product.title, loading: 'lazy' }}
+                {%- endif -%}
+                {{ expand_icon }}
+              </a>
+            </div>
+          {%- else -%}
+            <div class="rcb-hero__slide">{{ 'product-apparel-1' | placeholder_svg_tag: 'rcb-placeholder' }}</div>
+          {%- endfor -%}
+        </div>
+        {%- if images.size > 1 -%}
+          <button type="button" class="rcb-hero__nav rcb-hero__nav--prev" data-rcb-prev aria-label="আগের ছবি"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          <button type="button" class="rcb-hero__nav rcb-hero__nav--next" data-rcb-next aria-label="পরের ছবি"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          <div class="rcb-dots" data-rcb-dots>
+            {%- for img in images -%}
+              <button type="button" class="rcb-dot{% if forloop.first %} is-on{% endif %}" data-rcb-dot="{{ forloop.index0 }}"><span class="rcb-sr">ছবি {% render 'rcb-bn', text: forloop.index %}</span></button>
+            {%- endfor -%}
+          </div>
+          <div class="rcbl-thumbs" data-rcb-thumbs>
+            {%- for img in images -%}
+              <button type="button" class="rcbl-thumb{% if forloop.first %} is-active{% endif %}" data-rcb-jump="{{ forloop.index0 }}" aria-label="ছবি {{ forloop.index }}">
+                {{ img | image_url: width: 140, height: 175, crop: 'center' | image_tag: alt: '', width: 64, height: 80, loading: 'lazy' }}
+              </button>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      {%- if images.size > 0 -%}
+        <section class="rcb-section-gallery rcb-block">
+          <h2 class="rcb-h2">কাছ থেকে দেখুন</h2>
+          <div class="rcb-grid">
+            {%- for img in images -%}
+              <a class="rcb-grid__tile" href="{{ img | image_url: width: 2400 }}" data-rcb-image-open data-rcb-image-id="{{ img.id }}">
+                {{ img | image_url: width: 600 | image_tag: widths: '300,450,600', sizes: '(min-width: 990px) 280px, 50vw', alt: product.title, loading: 'lazy' }}
+                {{ expand_icon }}
+              </a>
+            {%- endfor -%}
+          </div>
+        </section>
+        {%- render 'rcb-product-viewer', label: product.title -%}
+      {%- endif -%}
+    </div>
+
+    <div class="rcbl-col-sidebar">
+      <nav aria-label="breadcrumb">
+        <ol class="rcb-crumbs">
+          <li><a href="{{ routes.root_url }}">হোম</a></li>
+          {%- if primary -%}
+            <li><a href="{{ primary.url }}?filter.v.availability=1">{{ primary.title | escape }}</a></li>
+          {%- endif -%}
+          <li><span aria-current="page">{{ product.title | escape }}</span></li>
+        </ol>
+      </nav>
+
+      <h1 class="rcb-title">{{ product.title | escape }}</h1>
+
+      <div class="rcb-price-row" data-rcb-price-row>
+        <span class="rcb-price">{{ current_variant.price | money_without_trailing_zeros }}</span>
+        {%- if current_variant.compare_at_price > current_variant.price -%}
+          <s class="rcb-compare">{{ current_variant.compare_at_price | money_without_trailing_zeros }}</s>
+        {%- endif -%}
+      </div>
+
+      <ul class="rcb-triad">
+        {%- assign sold = product.metafields.custom.sold_count.value -%}
+        {%- if sold != blank and sold > 0 -%}
+          <li>
+            <span class="rcb-triad__icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.8 7.2h10.4v8.4H2.8Zm10.4 2.6h4l3 3v3h-7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7" cy="17.6" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="17.6" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+            <span class="rcb-triad__label">{% render 'rcb-bn', text: sold %} পিস+ অলরেডি বিক্রি হয়েছে</span>
+          </li>
+        {%- endif -%}
+        <li>
+          <span class="rcb-triad__icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5.3l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+          <span class="rcb-triad__label">{{ settings.rcb_delivery_time | default: '৭২ ঘণ্টার মধ্যে হাতে পাবেন' }}</span>
+        </li>
+        <li>
+          <span class="rcb-triad__icon">{{ shield_icon }}</span>
+          <span class="rcb-triad__label">হাতে পেয়ে চেক করে পেমেন্ট করবেন</span>
+        </li>
+      </ul>
+
+      <a href="#rcb-order" class="rcb-cta-top rcb-btn rcb-btn--primary rcb-btn--block" data-rcb-scroll>অর্ডার করতে চাই<span class="rcb-btn__arrow" aria-hidden="true">→</span></a>
+
+      <section class="rcb-order" id="rcb-order">
+        <div class="rcb-order__head"><h2 class="rcb-order__h">অর্ডার করুন</h2></div>
+        <div class="rcb-order__body">
+          {%- form 'product', product, id: 'rcb-product-form', class: 'rcb-form', novalidate: 'novalidate' -%}
+            <input type="hidden" name="id" value="{{ current_variant.id }}" data-rcb-id-input>
+            {%- unless single -%}
+              {%- render 'rcb-product-variants', product: product, current_variant: current_variant -%}
+            {%- endunless -%}
+            <div class="rcb-buy" data-rcb-buy>
+              <div class="rcb-buy__item">
+                {%- assign line_img = current_variant.featured_media | default: product.featured_media -%}
+                {%- if line_img -%}
+                  {{ line_img | image_url: width: 112 | image_tag: class: 'rcb-line__img', alt: product.title, width: 56, height: 56, loading: 'lazy', decoding: 'async' }}
+                {%- endif -%}
+                <div class="rcb-buy__itembody">
+                  <span class="rcb-buy__itemtitle">{{ product.title | escape }}</span>
+                  {%- unless single -%}<span class="rcb-buy__itemvariant" data-rcb-variant-title>{{ current_variant.title | escape }}</span>{%- endunless -%}
+                  <span class="rcb-buy__itemprice">
+                    {{ current_variant.price | money_without_trailing_zeros }}
+                    {%- if current_variant.compare_at_price > current_variant.price %} <s class="rcb-compare">{{ current_variant.compare_at_price | money_without_trailing_zeros }}</s>{%- endif -%}
+                  </span>
+                </div>
+              </div>
+
+              {%- if held_line -%}
+                <div class="rcb-buy__qty rcb-buy__qty--held" data-rcb-line-key="{{ held_line.key }}">
+                  {%- render 'rcb-product-stepper', value: held_line.quantity, label: product.title, name: false -%}
+                  <a class="rcb-rm" href="{{ routes.cart_change_url }}?id={{ held_line.key }}&quantity=0" data-rcb-remove aria-label="বাদ দিন — {{ product.title | escape }}">
+                    <span class="rcb-i"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.8 6.8h14.4M9.6 6.8V5.2a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v1.6M6.6 6.8l.8 12a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9l.8-12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                  </a>
+                </div>
+              {%- else -%}
+                <div class="rcb-buy__qty">
+                  <span class="rcb-buy__qtylabel">কয়টি নেবেন</span>
+                  {%- render 'rcb-product-stepper', value: 1, label: product.title, name: true -%}
+                </div>
+              {%- endif -%}
+
+              <div class="rcb-buy__actions" data-rcb-precart{% if held_line %} hidden{% endif %}>
+                {%- if current_variant.available -%}
+                  <button type="submit" name="add" class="rcb-btn rcb-btn--primary rcb-btn--block rcb-btn--lg" data-rcb-submit data-rcb-buy-now><span data-rcb-buy-label>এখনই অর্ডার করুন</span><span class="rcb-btn__arrow" aria-hidden="true">→</span></button>
+                  <button type="submit" name="add" class="rcb-btn rcb-btn--ghost rcb-btn--block" data-rcb-submit data-rcb-add>কার্টে যোগ করুন</button>
+                {%- else -%}
+                  <button type="submit" name="add" class="rcb-btn rcb-btn--primary rcb-btn--block rcb-btn--lg" data-rcb-submit data-rcb-buy-now disabled><span data-rcb-buy-label>স্টক শেষ</span><span class="rcb-btn__arrow" aria-hidden="true" hidden>→</span></button>
+                  <button type="submit" name="add" class="rcb-btn rcb-btn--ghost rcb-btn--block" data-rcb-submit data-rcb-add hidden>কার্টে যোগ করুন</button>
+                {%- endif -%}
+              </div>
+              <div class="rcb-buy__added" data-rcb-added{% unless held_line %} hidden{% endunless %}>
+                <p class="rcb-buy__addedmsg">
+                  <span class="rcb-i">{{ shield_icon }}</span>
+                  <span data-rcb-added-text>কার্টে যোগ হয়েছে</span>
+                </p>
+                <a class="rcb-btn rcb-btn--primary rcb-btn--block" href="{{ routes.cart_url }}" data-rcb-added-link>অর্ডার সম্পূর্ণ করুন<span class="rcb-btn__arrow" aria-hidden="true">→</span></a>
+              </div>
+            </div>
+          {%- endform -%}
+
+          <div data-rcb-attach-region{% if attach_list == blank %} data-rcb-attach-fallback="{{ routes.product_recommendations_url }}?product_id={{ product.id }}&limit=3&intent=complementary&section_id={{ section.id }}"{% endif %}>
+            {%- if attach_list != blank -%}
+              {%- render 'rcb-product-attach', products: attach_list, current: product -%}
+            {%- endif -%}
+          </div>
+        </div>
+      </section>
+
+      {%- render 'rcb-proof', images: shop.metafields.custom.reviews.value, heading: 'কাস্টমার রিভিউ', sub: 'প্রাইভেসির কারণে নাম ও নম্বর ঢেকে দেওয়া হয়েছে।' -%}
+
+      {%- liquid
+        assign faq_lines = product.metafields.custom.faq.value | newline_to_br | split: '<br />'
+      -%}
+      <section class="rcb-section-faq rcb-block">
+        <h2 class="rcb-h2">যেসব প্রশ্ন সবাই করেন</h2>
+        {%- for line in faq_lines -%}
+          {%- assign pair = line | strip | split: '|' -%}
+          {%- if pair.size > 1 -%}
+            {%- assign q = pair | first | strip -%}
+            {%- assign a = line | strip | remove_first: pair.first | remove_first: '|' | strip -%}
+            <details class="rcb-faq"><summary>{{ q | escape }}</summary><div class="rcb-faq__a">{{ a | escape }}</div></details>
+          {%- endif -%}
+        {%- endfor -%}
+        <details class="rcb-faq"><summary>{{ return_q }}</summary><div class="rcb-faq__a">{{ return_a }}</div></details>
+      </section>
+
+      <section class="rcb-cod">
+        <div class="rcb-wrap">
+          <span class="rcb-cod__seal">{{ shield_icon }}</span>
+          <h2 class="rcb-cod__h">ক্যাশ অন ডেলিভারি</h2>
+          <p class="rcb-cod__body">{{ cod_a }}</p>
+        </div>
+      </section>
+
+      {%- assign reasons = product.metafields.custom.reasons.value -%}
+      {%- if reasons != blank -%}
+        <section class="rcb-section-reasons rcb-block">
+          <h2 class="rcb-h2">কেন এটা নেবেন</h2>
+          <ul class="rcb-why">
+            {%- for r in reasons -%}
+              <li><span class="rcb-why__num">{{ forloop.index }}</span><div><h3 class="rcb-why__t">{{ r | escape }}</h3></div></li>
+            {%- endfor -%}
+          </ul>
+        </section>
+      {%- endif -%}
+
+      {%- assign summary = product.metafields.custom.summary.value -%}
+      {%- assign specs = product.metafields.custom.specs.value -%}
+      {%- if summary != blank or product.description != blank or specs != blank -%}
+        <section class="rcb-section-specs rcb-block">
+          <h2 class="rcb-h2">এক নজরে</h2>
+          {%- if summary != blank -%}
+            <div class="rcbl-desc"><p>{{ summary | escape | newline_to_br }}</p></div>
+          {%- elsif product.description != blank -%}
+            <div class="rcbl-desc">{{ product.description }}</div>
+          {%- endif -%}
+          {%- if specs != blank -%}
+            <dl class="rcb-spec">
+              {%- for s in specs -%}
+                {%- assign bits = s | split: ':' -%}
+                {%- if bits.size > 1 -%}
+                  {%- assign label = bits | first | strip -%}
+                  {%- assign value = s | remove_first: bits.first | remove_first: ':' | strip -%}
+                  <dt>{{ label | escape }}</dt><dd>{{ value | escape }}</dd>
+                {%- endif -%}
+              {%- endfor -%}
+            </dl>
+          {%- endif -%}
+        </section>
+      {%- endif -%}
+
+      <a href="#rcb-order" class="rcb-cta-mid rcb-btn rcb-btn--primary rcb-btn--block rcb-btn--spaced" data-rcb-scroll>হ্যাঁ, এটাই নেব<span class="rcb-btn__arrow" aria-hidden="true">→</span></a>
+    </div>
+
+    <div class="rcbl-full">
+      {%- liquid
+        assign shown = product.handle | prepend: ','  | append: ','
+        assign rail1 = 0
+        if primary
+          for p in primary.products
+            if p.id != product.id and p.available
+              assign rail1 = rail1 | plus: 1
+            endif
+          endfor
+        endif
+        assign rail2 = 0
+        if broad
+          for p in broad.products
+            if p.id != product.id and p.available
+              assign rail2 = rail2 | plus: 1
+            endif
+          endfor
+        endif
+      -%}
+      {%- if rail1 > 0 or rail2 > 0 -%}
+        <section class="rcb-section-more rcb-block">
+          {%- if rail1 > 0 -%}
+            <div class="rcb-rail">
+              <div class="rcb-rail__head"><h2 class="rcb-rail__t">{{ primary.title | escape }}</h2></div>
+              <div class="rcb-rail__track">
+                {%- assign n = 0 -%}
+                {%- for p in primary.products -%}
+                  {%- if p.id == product.id or p.available == false -%}{%- continue -%}{%- endif -%}
+                  {%- capture card -%}{%- render 'rcb-card', product: p -%}{%- endcapture -%}
+                  {%- if n == 0 -%}{{ card | replace_first: 'data-rcb-card ', 'data-rcb-card data-rcb-card-motion ' }}{%- else -%}{{ card }}{%- endif -%}
+                  {%- assign shown = shown | append: p.handle | append: ',' -%}
+                  {%- assign n = n | plus: 1 -%}
+                  {%- if n >= 4 -%}{%- break -%}{%- endif -%}
+                {%- endfor -%}
+              </div>
+            </div>
+          {%- endif -%}
+          {%- if broad -%}
+            {%- capture broad_cards -%}
+              {%- assign n = 0 -%}
+              {%- for p in broad.products -%}
+                {%- assign key = p.handle | prepend: ',' | append: ',' -%}
+                {%- if shown contains key or p.available == false -%}{%- continue -%}{%- endif -%}
+                {%- render 'rcb-card', product: p -%}
+                {%- assign n = n | plus: 1 -%}
+                {%- if n >= 6 -%}{%- break -%}{%- endif -%}
+              {%- endfor -%}
+            {%- endcapture -%}
+            {%- if broad_cards != blank -%}
+              <div class="rcb-rail">
+                <div class="rcb-rail__head">
+                  <h2 class="rcb-rail__t">{{ broad.title | escape }}</h2>
+                  <a class="rcb-rail__all" href="{{ broad.url }}?filter.v.availability=1">সব দেখুন<span aria-hidden="true">→</span></a>
+                </div>
+                <div class="rcb-rail__track">{{ broad_cards }}</div>
+              </div>
+            {%- endif -%}
+          {%- endif -%}
+        </section>
+      {%- endif -%}
+
+      <section class="rcb-contact rcb-contact--divided">
+        <h2 class="rcb-contact__h">প্রশ্ন আছে? সরাসরি কথা বলুন</h2>
+        {%- render 'rcb-contact' -%}
+      </section>
+    </div>
+  </div>
+</div>
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": {{ product.title | json }},
+    "url": {{ request.origin | append: product.url | json }},
+    "image": [{%- for img in images limit: 6 -%}{{ img | image_url: width: 1200 | prepend: 'https:' | json }}{% unless forloop.last %},{% endunless %}{%- endfor -%}],
+    "description": {{ product.description | strip_html | strip | truncate: 500 | json }},
+    "sku": {{ current_variant.sku | default: product.handle | json }},
+    {%- if primary %}"category": {{ primary.title | json }},{% endif %}
+    "brand": { "@type": "Brand", "name": {{ shop.name | json }} },
+    "offers": {
+      "@type": "Offer",
+      "url": {{ request.origin | append: product.url | json }},
+      "price": {{ current_variant.price | divided_by: 100.0 | json }},
+      "priceCurrency": {{ cart.currency.iso_code | json }},
+      "availability": "https://schema.org/{% if current_variant.available %}InStock{% else %}OutOfStock{% endif %}",
+      "itemCondition": "https://schema.org/NewCondition"
+    }
+  }
+</script>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "হোম", "item": {{ request.origin | append: '/' | json }} }
+      {%- if primary -%},{ "@type": "ListItem", "position": 2, "name": {{ primary.title | json }}, "item": {{ request.origin | append: primary.url | json }} }{%- endif -%}
+      ,{ "@type": "ListItem", "position": {% if primary %}3{% else %}2{% endif %}, "name": {{ product.title | json }} }
+    ]
+  }
+</script>
+<script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+    {%- for line in faq_lines -%}
+      {%- assign pair = line | strip | split: '|' -%}
+      {%- if pair.size > 1 -%}
+        {%- assign q = pair | first | strip -%}
+        {%- assign a = line | strip | remove_first: pair.first | remove_first: '|' | strip -%}
+        {"@type":"Question","name":{{ q | json }},"acceptedAnswer":{"@type":"Answer","text":{{ a | json }}}},
+      {%- endif -%}
+    {%- endfor -%}
+    {"@type":"Question","name":{{ return_q | json }},"acceptedAnswer":{"@type":"Answer","text":{{ return_a | json }}}}
+  ] }
+</script>
+<script src="{{ 'rcb-product.js' | asset_url }}" defer></script>
+{%- if attach_list == blank -%}
+  <script>
+    (function () {
+      var region = document.querySelector('#rcb-{{ section.id }} [data-rcb-attach-region][data-rcb-attach-fallback]');
+      if (!region) return;
+      var busy = false;
+      var load = function () {
+        if (busy || region.children.length) return;
+        busy = true;
+        fetch(region.dataset.rcbAttachFallback)
+          .then(function (r) { return r.ok ? r.text() : ''; })
+          .then(function (html) {
+            var from = new DOMParser().parseFromString(html, 'text/html').querySelector('[data-rcb-attach-region]');
+            if (from && from.innerHTML.trim()) region.innerHTML = from.innerHTML;
+          })
+          .catch(function () {})
+          .finally(function () { busy = false; });
+      };
+      load();
+      /* rcb-product.js repaints this region from the plain section render after a cart write. */
+      new MutationObserver(load).observe(region, { childList: true });
+    })();
+  </script>
+{%- endif -%}
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Ghorer Poshak product",
+  "tag": "section",
+  "class": "rcb-product-section",
+  "settings": []
+}
+{% endschema %}

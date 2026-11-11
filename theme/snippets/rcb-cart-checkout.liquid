@@ -1,0 +1,151 @@
+{%- comment -%}
+  Checkout fallback for the one-page COD order form.
+
+  When the "অর্ডার সার্ভার" theme setting (settings.rcb_order_endpoint) is blank, assets/rcb-order.js has
+  nowhere to post the order. This script catches the form's submit first (document capture phase, so it
+  runs before rcb-order.js's own listener on the form), validates with window.RCB_VALIDATE, stores the
+  buyer's details on the cart (attributes + note, visible on the order in Shopify admin) and sends the
+  buyer to Shopify checkout with the shipping address prefilled. Cash on Delivery is chosen there.
+
+  Rendered only when the endpoint is blank, so the endpoint flow is untouched when it is set.
+{%- endcomment -%}
+<script>
+  (function () {
+    var ZONES = { inside: 'ঢাকার ভেতরে', outside: 'ঢাকার বাইরে' };
+
+    function cell(form, name) {
+      return form.querySelector('[data-rcb-field="' + name + '"]');
+    }
+    function inputOf(form, name) {
+      var box = cell(form, name);
+      return box ? box.querySelector('[data-rcb-input]') : null;
+    }
+    function showError(form, name, message) {
+      var box = cell(form, name);
+      if (!box) return;
+      var line = box.querySelector('[data-rcb-error]');
+      var input = inputOf(form, name);
+      box.classList.add('is-bad');
+      if (input) input.setAttribute('aria-invalid', 'true');
+      if (line) {
+        line.textContent = message;
+        line.hidden = false;
+      }
+    }
+    function clearError(form, name) {
+      var box = cell(form, name);
+      if (!box) return;
+      var line = box.querySelector('[data-rcb-error]');
+      var input = inputOf(form, name);
+      box.classList.remove('is-bad');
+      if (input) input.removeAttribute('aria-invalid');
+      if (line) {
+        line.hidden = true;
+        line.textContent = '';
+      }
+    }
+
+    document.addEventListener(
+      'submit',
+      function (event) {
+        var form = event.target;
+        if (!form || !form.matches || !form.matches('[data-rcb-order-form]')) return;
+        var root = form.closest('[data-rcb-order]');
+        if (!root || root.dataset.rcbEndpoint) return;
+
+        /* Ours alone: keep rcb-order.js from showing its "no server" failure line. */
+        event.preventDefault();
+        event.stopPropagation();
+
+        var rules = window.RCB_VALIDATE;
+        var cartRoot = document.querySelector('[data-rcb-cart]');
+        var submit = form.querySelector('[data-rcb-order-submit]');
+        var label = form.querySelector('[data-rcb-order-label]');
+        var failLine = form.querySelector('[data-rcb-order-fail]');
+        if (!rules || form.classList.contains('is-sending')) return;
+        if (cartRoot && cartRoot.dataset.rcbCartBusy === 'true') return;
+
+        ['name', 'phone', 'address'].forEach(function (name) {
+          clearError(form, name);
+        });
+        if (failLine) failLine.hidden = true;
+
+        var typed = {
+          name: (inputOf(form, 'name') || {}).value || '',
+          phone: (inputOf(form, 'phone') || {}).value || '',
+          address: (inputOf(form, 'address') || {}).value || '',
+        };
+        var checked = rules.checkOrderForm(typed);
+        if (!checked.ok) {
+          showError(form, checked.field, checked.message);
+          var bad = inputOf(form, checked.field);
+          if (bad) bad.focus();
+          return;
+        }
+
+        var zone = (cartRoot && cartRoot.dataset.rcbDeliveryZone) || 'outside';
+        var who = checked.value;
+        var parts = rules.splitName(who.name);
+        var localPhone = '0' + who.phone.replace('+880', '');
+
+        form.classList.add('is-sending');
+        if (cartRoot) cartRoot.dataset.rcbOrderBusy = 'true';
+        if (submit) {
+          submit.disabled = true;
+          submit.setAttribute('aria-busy', 'true');
+          submit.style.setProperty('--rcb-order-progress', '0.6');
+        }
+        if (label) label.textContent = form.dataset.rcbCheckoutLabel || 'চেকআউটে নেওয়া হচ্ছে...';
+
+        var note = 'নাম: ' + who.name + '\nমোবাইল: ' + localPhone + '\nঠিকানা: ' + who.address + '\nডেলিভারি: ' + (ZONES[zone] || zone);
+
+        var params = new URLSearchParams();
+        params.set('checkout[shipping_address][first_name]', parts.firstName);
+        if (parts.lastName) params.set('checkout[shipping_address][last_name]', parts.lastName);
+        params.set('checkout[shipping_address][address1]', who.address);
+        params.set('checkout[shipping_address][phone]', who.phone);
+        params.set('checkout[shipping_address][country]', 'Bangladesh');
+        if (zone === 'inside') params.set('checkout[shipping_address][city]', 'Dhaka');
+        var target = '/checkout?' + params.toString();
+
+        fetch('/cart/update.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            note: note,
+            attributes: {
+              'Customer name': who.name,
+              Phone: localPhone,
+              Address: who.address,
+              'Delivery area': ZONES[zone] || zone,
+              rcb_delivery_zone: zone,
+            },
+          }),
+        })
+          .catch(function () {})
+          .then(function () {
+            window.location.assign(target);
+          });
+      },
+      true
+    );
+
+    /* Back from checkout (bfcache): give the buyer a working form again. */
+    window.addEventListener('pageshow', function (event) {
+      if (!event.persisted) return;
+      var form = document.querySelector('[data-rcb-order-form]');
+      if (!form || !form.classList.contains('is-sending')) return;
+      var submit = form.querySelector('[data-rcb-order-submit]');
+      var label = form.querySelector('[data-rcb-order-label]');
+      var cartRoot = document.querySelector('[data-rcb-cart]');
+      form.classList.remove('is-sending');
+      if (cartRoot) delete cartRoot.dataset.rcbOrderBusy;
+      if (submit) {
+        submit.disabled = false;
+        submit.removeAttribute('aria-busy');
+        submit.style.removeProperty('--rcb-order-progress');
+      }
+      if (label) label.textContent = 'অর্ডার করুন';
+    });
+  })();
+</script>

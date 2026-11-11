@@ -1,0 +1,15 @@
+{%- comment -%}
+  Cart-page icons, copied from the reference cart. `tick-raw` is the bare SVG (caller supplies the wrapper);
+  the others come wrapped in <span class="rcb-i">.
+  Params: name — tick | tick-raw | truck | shield
+{%- endcomment -%}
+{%- case name -%}
+  {%- when 'tick-raw' -%}
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 10.5 8 14.5 16 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  {%- when 'tick' -%}
+    <span class="rcb-i"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 10.5 8 14.5 16 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  {%- when 'truck' -%}
+    <span class="rcb-i"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.8 7.2h10.4v8.4H2.8Zm10.4 2.6h4l3 3v3h-7Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7" cy="17.6" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="17.6" r="1.7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+  {%- when 'shield' -%}
+    <span class="rcb-i"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5 20 6.5v5c0 4.6-3.2 7.9-8 9.4-4.8-1.5-8-4.8-8-9.4v-5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.6 12.1 11 14.5l4.4-4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+{%- endcase -%}

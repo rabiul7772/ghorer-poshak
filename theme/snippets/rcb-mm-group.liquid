@@ -1,0 +1,15 @@
+{%- doc -%}
+  One category group inside the Ghorer Poshak mega menu.
+
+  @param {string} title - Group heading.
+  @param {string} items - Pre-rendered `rcb-mm-item` list items.
+
+  @example
+  {% render 'rcb-mm-group', title: 'জনপ্রিয় ক্যাটাগরি', items: items_html %}
+{%- enddoc -%}
+<div class="rcb-mm-group">
+  <h4 class="rcb-mm-group-title"><span>{{ title | escape }}</span></h4>
+  <ul class="rcb-mm-cat-list list-unstyled" role="list">
+    {{- items -}}
+  </ul>
+</div>

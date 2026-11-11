@@ -1,0 +1,20 @@
+{%- comment -%}
+  "Order placed" panel revealed by assets/rcb-order.js after the order server confirms an order.
+  Params: section (the rcb-cart section, for its copy settings)
+{%- endcomment -%}
+<section class="rcbo-done" data-rcb-order-done hidden>
+  <p class="rcbo-done__mark" aria-hidden="true">
+    <span class="rcb-i">{%- render 'rcb-cart-icon', name: 'tick-raw' -%}</span>
+  </p>
+  <h2 class="rcbo-done__h">{{ section.settings.done_heading }}</h2>
+  <dl class="rcbo-done__ref" data-rcb-done-ref hidden>
+    <div class="rcbo-done__row" data-rcb-done-row="number" hidden>
+      <dt>অর্ডার নম্বর</dt>
+      <dd data-rcb-done-number></dd>
+    </div>
+  </dl>
+  <p class="rcbo-done__body">{{ section.settings.done_body }}</p>
+  <a class="rcb-btn rcb-btn--ghost rcb-btn--block" href="{{ routes.all_products_collection_url }}?filter.v.availability=1" data-rcb-mine>
+    আমাদের আরও প্রোডাক্ট দেখুন
+  </a>
+</section>

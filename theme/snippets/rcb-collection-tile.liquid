@@ -1,0 +1,32 @@
+{%- comment -%}
+  Collection card for the /collections page.
+  Params: tile (collection, required), title (optional label)
+{%- endcomment -%}
+{%- if tile -%}
+  {%- liquid
+    assign tile_img = tile.image
+    if tile_img == blank
+      assign tile_img = tile.featured_image
+    endif
+    if tile_img == blank
+      for p in tile.products limit: 1
+        assign tile_img = p.featured_media
+      endfor
+    endif
+    assign label = title | default: tile.title
+  -%}
+  <a class="rcb-card" href="{{ tile.url }}?filter.v.availability=1" data-rcb-category="{{ tile.handle }}">
+    <div class="rcb-card__media">
+      {%- if tile_img != blank -%}
+        {{ tile_img | image_url: width: 500 | image_tag: widths: '240,320,400,500,640', sizes: '(min-width: 1024px) 380px, 50vw', alt: label, width: 400, height: 500, loading: 'lazy' }}
+      {%- else -%}
+        {{ 'collection-apparel-1' | placeholder_svg_tag: 'rcb-card__placeholder' }}
+      {%- endif -%}
+    </div>
+    <div class="rcb-card__body">
+      <h3 class="rcb-card__t">{{ label | escape }}</h3>
+      <span class="rcbi-count">{{ tile.all_products_count }}টি পণ্য</span>
+      <span class="rcb-card__cta">দেখুন <span aria-hidden="true">→</span></span>
+    </div>
+  </a>
+{%- endif -%}

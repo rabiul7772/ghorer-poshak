@@ -1,0 +1,30 @@
+{%- comment -%}
+  A horizontal rail of up to `limit` in-stock products from a collection.
+  Params: rail_collection (required), title (defaults to the collection title), limit (default 6)
+{%- endcomment -%}
+{%- liquid
+  assign rail_limit = limit | default: 6
+  assign rail_count = 0
+  for product in rail_collection.products limit: 50
+    if product.available
+      assign rail_count = rail_count | plus: 1
+    endif
+  endfor
+-%}
+{%- if rail_count > 0 -%}
+  <div class="rcb-rail">
+    <div class="rcb-rail__head">
+      <h3 class="rcb-rail__t">{{ title | default: rail_collection.title | escape }}</h3>
+      <a class="rcb-rail__all" href="{{ rail_collection.url }}?filter.v.availability=1">সব দেখুন <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="rcb-rail__track">
+      {%- assign shown = 0 -%}
+      {%- for product in rail_collection.products limit: 50 -%}
+        {%- if product.available and shown < rail_limit -%}
+          {%- render 'rcb-card', product: product -%}
+          {%- assign shown = shown | plus: 1 -%}
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+  </div>
+{%- endif -%}

@@ -1,0 +1,108 @@
+{%- comment -%}
+  Ghorer Poshak generic page (terms, return policy, shipping policy, privacy …).
+  Reading-width prose in the storefront's visual language, with a contact strip at the end.
+{%- endcomment -%}
+<div class="rcb rcb--page">
+  <div class="rcb-wrap rcbp-wrap">
+    <nav aria-label="breadcrumb">
+      <ol class="rcb-crumbs">
+        <li><a href="{{ routes.root_url }}">হোম</a></li>
+        <li><span aria-current="page">{{ page.title | escape }}</span></li>
+      </ol>
+    </nav>
+    <article class="rcbp-article">
+      <h1 class="rcbi-h1">{{ page.title | escape }}</h1>
+      <div class="rcbp-rte">{{ page.content }}</div>
+    </article>
+
+    {%- if section.settings.show_contact -%}
+      <section class="rcbp-help">
+        <h2 class="rcb-h2">{{ section.settings.help_heading | escape }}</h2>
+        {%- render 'rcb-contact' -%}
+      </section>
+    {%- endif -%}
+  </div>
+</div>
+
+{% stylesheet %}
+  .rcbp-wrap {
+    padding-top: 1.5rem;
+    padding-bottom: 3.5rem;
+  }
+  .rcbp-article,
+  .rcbp-help {
+    max-width: var(--rcb-reading);
+  }
+  .rcbp-rte {
+    font-size: 0.9375rem;
+    line-height: 1.9;
+    color: var(--rcb-ink);
+  }
+  .rcbp-rte > :first-child {
+    margin-top: 0;
+  }
+  .rcbp-rte :is(h2, h3, h4) {
+    margin: 1.75rem 0 0.5rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .rcbp-rte h2 {
+    font-size: 1.25rem;
+  }
+  .rcbp-rte :is(h3, h4) {
+    font-size: 1.0625rem;
+  }
+  .rcbp-rte p {
+    margin: 0 0 1rem;
+  }
+  .rcbp-rte :is(ul, ol) {
+    margin: 0 0 1rem;
+    padding-inline-start: 1.25rem;
+  }
+  .rcbp-rte li {
+    margin-bottom: 0.375rem;
+  }
+  .rcbp-rte a {
+    color: var(--rcb-maroon);
+    text-underline-offset: 3px;
+  }
+  .rcbp-rte strong {
+    font-weight: 600;
+  }
+  .rcbp-rte table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 1rem;
+  }
+  .rcbp-rte :is(th, td) {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--rcb-line);
+    text-align: start;
+  }
+  .rcbp-help {
+    margin-top: 2.5rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--rcb-line);
+  }
+  @media (min-width: 750px) {
+    .rcbp-wrap {
+      padding-top: 2rem;
+      padding-bottom: 4.5rem;
+    }
+    .rcbp-rte {
+      font-size: 1rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "GP page",
+  "tag": "section",
+  "class": "rcb-section rcb-section--page",
+  "settings": [
+    { "type": "checkbox", "id": "show_contact", "label": "নিচে যোগাযোগ দেখান", "default": true },
+    { "type": "text", "id": "help_heading", "label": "যোগাযোগ অংশের শিরোনাম", "default": "প্রশ্ন আছে? সরাসরি কথা বলুন" }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,21 @@
+{%- comment -%} Fullscreen image viewer for the product gallery (driven by assets/rcb-image-viewer.js). Params: label {%- endcomment -%}
+<dialog class="rcb-image-viewer" data-rcb-image-viewer aria-label="{{ label | escape }}">
+  <div class="rcb-image-viewer__toolbar">
+    <div class="rcb-image-viewer__nav" data-rcb-image-nav hidden>
+      <button type="button" class="rcb-image-viewer__step" data-rcb-image-step="-1" aria-label="আগের ছবি"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <span class="rcb-image-viewer__count" data-rcb-image-count role="status" aria-live="polite" aria-atomic="true"></span>
+      <button type="button" class="rcb-image-viewer__step" data-rcb-image-step="1" aria-label="পরের ছবি"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <div class="rcb-image-viewer__actions">
+      <div class="rcb-image-viewer__zoom">
+        <button type="button" class="rcb-image-viewer__zoom-button" data-rcb-image-zoom="-1" aria-label="ছোট করুন" disabled><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M7.5 10.5h6"/></svg></button>
+        <button type="button" class="rcb-image-viewer__zoom-button" data-rcb-image-zoom="1" aria-label="বড় করুন"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M7.5 10.5h6M10.5 7.5v6"/></svg></button>
+      </div>
+      <button type="button" class="rcb-image-viewer__close" data-rcb-image-close aria-label="বন্ধ করুন" autofocus><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+    </div>
+  </div>
+  <div class="rcb-image-viewer__frame" data-rcb-image-frame>
+    <img alt="" width="1" height="1" draggable="false" data-rcb-image-full>
+  </div>
+</dialog>
+<script src="{{ 'rcb-image-viewer.js' | asset_url }}" type="module"></script>

@@ -1,0 +1,276 @@
+{%- comment -%}
+  Ghorer Poshak collection page.
+  Sidebar + chips come from the navigation menu set in section settings (default: main-menu):
+  - the top-level link that IS this collection, or whose child links include it, is the "department";
+    its child links become the category list ("সব <department>" first).
+  - every top-level collection link is listed under "ডিপার্টমেন্ট" and gets a rail under "আরও দেখুন".
+  If the menu has no collection links, all store collections are used instead.
+{%- endcomment -%}
+{%- liquid
+  assign menu = linklists[section.settings.menu]
+  assign dept = nil
+  for link in menu.links
+    if link.type == 'collection_link' and link.object.handle == collection.handle
+      assign dept = link
+      break
+    endif
+    for child in link.links
+      if child.type == 'collection_link' and child.object.handle == collection.handle
+        assign dept = link
+        break
+      endif
+    endfor
+    if dept
+      break
+    endif
+  endfor
+
+  assign show_cats = false
+  if dept and dept.links.size > 0
+    assign show_cats = true
+  endif
+
+  assign dept_links_count = 0
+  for link in menu.links
+    if link.type == 'collection_link'
+      assign dept_links_count = dept_links_count | plus: 1
+    endif
+  endfor
+
+  assign current_sort = collection.sort_by | default: collection.default_sort_by
+-%}
+{%- paginate collection.products by section.settings.per_page -%}
+  {%- assign ids = collection.products | map: 'id' | join: ',' -%}
+  <div class="rcb rcb--collection" data-rcb-category="{{ collection.handle }}" data-rcb-category-name="{{ collection.title | escape }}" data-rcb-currency="{{ cart.currency.iso_code }}" data-rcb-content-ids="{{ ids }}">
+    <div class="rcb-wrap rcbc-top">
+      <nav aria-label="breadcrumb">
+        <ol class="rcb-crumbs">
+          <li><a href="{{ routes.root_url }}">হোম</a></li>
+          <li><a href="{{ routes.collections_url }}">সব ক্যাটাগরি</a></li>
+          <li><span aria-current="page">{{ collection.title | escape }}</span></li>
+        </ol>
+      </nav>
+
+      <div class="rcbc-layout{% if show_cats %} rcbc-layout--categories{% endif %}">
+        <aside class="rcbc-sidebar" aria-label="ফিল্টার ও ক্যাটাগরি">
+          {%- if show_cats -%}
+            <div class="rcbc-side__card">
+              <h2 class="rcbc-side__heading">
+                <span class="rcb-i">{% render 'rcb-icon', name: 'grid' %}</span>
+                {{ dept.title | escape }}
+              </h2>
+              <ul class="rcbc-side__nav" role="list">
+                {%- if dept.type == 'collection_link' -%}
+                  <li>
+                    <a class="rcbc-side__link{% if dept.object.handle == collection.handle %} is-active{% endif %}" href="{{ dept.object.url }}?filter.v.availability=1">
+                      <span class="rcbc-side__link-text">সব {{ dept.title | escape }}</span>
+                      <span class="rcbc-side__badge">{{ dept.object.all_products_count }}</span>
+                    </a>
+                  </li>
+                {%- endif -%}
+                {%- for child in dept.links -%}
+                  {%- if child.type == 'collection_link' -%}
+                    <li>
+                      <a class="rcbc-side__link{% if child.object.handle == collection.handle %} is-active{% endif %}" href="{{ child.object.url }}?filter.v.availability=1">
+                        <span class="rcbc-side__link-text">{{ child.title | escape }}</span>
+                        <span class="rcbc-side__badge">{{ child.object.all_products_count }}</span>
+                      </a>
+                    </li>
+                  {%- else -%}
+                    <li>
+                      <a class="rcbc-side__link" href="{{ child.url }}"><span class="rcbc-side__link-text">{{ child.title | escape }}</span></a>
+                    </li>
+                  {%- endif -%}
+                {%- endfor -%}
+              </ul>
+            </div>
+          {%- endif -%}
+
+          <div class="rcbc-side__card">
+            <h2 class="rcbc-side__heading">ডিপার্টমেন্ট</h2>
+            <ul class="rcbc-side__nav" role="list">
+              {%- if dept_links_count > 0 -%}
+                {%- for link in menu.links -%}
+                  {%- if link.type == 'collection_link' -%}
+                    <li>
+                      <a class="rcbc-side__link{% if dept and dept.object.handle == link.object.handle %} is-active{% endif %}" href="{{ link.object.url }}?filter.v.availability=1">
+                        <span class="rcbc-side__link-text">{{ link.title | escape }}</span>
+                        <span class="rcbc-side__badge">{{ link.object.all_products_count }}</span>
+                      </a>
+                    </li>
+                  {%- endif -%}
+                {%- endfor -%}
+              {%- else -%}
+                {%- for c in collections -%}
+                  {%- unless c.handle == 'frontpage' or c.all_products_count == 0 -%}
+                    <li>
+                      <a class="rcbc-side__link{% if c.handle == collection.handle %} is-active{% endif %}" href="{{ c.url }}?filter.v.availability=1">
+                        <span class="rcbc-side__link-text">{{ c.title | escape }}</span>
+                        <span class="rcbc-side__badge">{{ c.all_products_count }}</span>
+                      </a>
+                    </li>
+                  {%- endunless -%}
+                {%- endfor -%}
+              {%- endif -%}
+            </ul>
+          </div>
+        </aside>
+
+        <div class="rcbc-main">
+          <div class="rcbc-header-bar">
+            <div>
+              <h1 class="rcbc-h1">{{ collection.title | escape }}</h1>
+              <p class="rcbc-count-summary">
+                {%- if collection.products_count > 0 -%}{{ collection.products_count }}টি পণ্য{%- endif -%}
+              </p>
+            </div>
+            {%- if collection.all_products_count > 0 -%}
+              <div class="rcbc-sort">
+                <label for="rcbc-sort-select" class="rcbc-sort__label">বাছাই:</label>
+                <select id="rcbc-sort-select" class="rcbc-sort__select" onchange="const url = new URL(location.href); url.searchParams.set('sort_by', this.value); url.searchParams.set('filter.v.availability', '1'); url.searchParams.delete('page'); location.assign(url.href);">
+                  <option value="best-selling"{% if current_sort == 'best-selling' %} selected{% endif %}>জনপ্রিয় কালেকশন</option>
+                  <option value="price-ascending"{% if current_sort == 'price-ascending' %} selected{% endif %}>দাম: কম থেকে বেশি</option>
+                  <option value="price-descending"{% if current_sort == 'price-descending' %} selected{% endif %}>দাম: বেশি থেকে কম</option>
+                  <option value="created-descending"{% if current_sort == 'created-descending' %} selected{% endif %}>নতুন আগমন</option>
+                </select>
+              </div>
+            {%- endif -%}
+          </div>
+
+          {%- if show_cats -%}
+            <ul class="rcb-chips" data-rcb-chips>
+              {%- if dept.type == 'collection_link' -%}
+                {%- assign on = false -%}
+                {%- if dept.object.handle == collection.handle -%}{%- assign on = true -%}{%- endif -%}
+                <li><a class="rcb-chip{% if on %} rcb-chip--on{% endif %}" href="{{ dept.object.url }}?filter.v.availability=1"{% if on %} aria-current="page"{% endif %}>সব {{ dept.title | escape }}</a></li>
+              {%- endif -%}
+              {%- for child in dept.links -%}
+                {%- assign on = false -%}
+                {%- if child.type == 'collection_link' and child.object.handle == collection.handle -%}{%- assign on = true -%}{%- endif -%}
+                {%- if child.type == 'collection_link' -%}
+                  <li><a class="rcb-chip{% if on %} rcb-chip--on{% endif %}" href="{{ child.object.url }}?filter.v.availability=1"{% if on %} aria-current="page"{% endif %}>{{ child.title | escape }}</a></li>
+                {%- else -%}
+                  <li><a class="rcb-chip" href="{{ child.url }}">{{ child.title | escape }}</a></li>
+                {%- endif -%}
+              {%- endfor -%}
+            </ul>
+          {%- endif -%}
+
+          {%- if collection.products.size > 0 -%}
+            <div class="rcb-cards">
+              {%- for product in collection.products -%}
+                {%- if forloop.index <= 2 and paginate.current_page == 1 -%}
+                  {%- render 'rcb-card', product: product, lazy: false -%}
+                {%- else -%}
+                  {%- render 'rcb-card', product: product -%}
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+
+            {%- if paginate.pages > 1 -%}
+              <nav aria-label="পাতা">
+                <ul class="rcb-page">
+                  {%- for part in paginate.parts -%}
+                    <li>
+                      {%- if part.is_link -%}
+                        <a href="{{ part.url }}">{{ part.title }}</a>
+                      {%- elsif part.title == paginate.current_page -%}
+                        <span aria-current="page">{{ part.title }}</span>
+                      {%- else -%}
+                        <span>{{ part.title }}</span>
+                      {%- endif -%}
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              </nav>
+            {%- endif -%}
+          {%- elsif collection.all_products_count > 0 -%}
+            <p class="rcb-empty">
+              এই মুহূর্তে এখানে দেখানোর মতো কোনো পণ্য নেই।<br>
+              <a class="rcbc-empty__link" href="{{ collection.url }}">সব পণ্য দেখুন →</a>
+            </p>
+          {%- else -%}
+            <p class="rcb-empty">এই ক্যাটাগরিতে এখনো কিছু যোগ করা হয়নি। খুব শিগগিরই আসছে।</p>
+          {%- endif -%}
+
+          {%- capture rails -%}
+            {%- if dept_links_count > 0 -%}
+              {%- for link in menu.links -%}
+                {%- if link.type == 'collection_link' and link.object.handle != collection.handle -%}
+                  {%- render 'rcb-collection-rail', rail_collection: link.object, title: link.title -%}
+                {%- endif -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endcapture -%}
+          {%- if rails != blank -%}
+            <section class="rcb-section-cross rcb-block">
+              <h2 class="rcb-h2">আরও দেখুন</h2>
+              {{ rails }}
+            </section>
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": {{ collection.title | json }},
+      "url": {{ collection.url | prepend: request.origin | json }},
+      {%- if collection.description != blank %}
+      "description": {{ collection.description | strip_html | strip | json }},
+      {%- endif %}
+      "mainEntity": {
+        "@type": "ItemList",
+        "numberOfItems": {{ collection.products_count }},
+        "itemListElement": [
+          {%- for product in collection.products -%}
+            {
+              "@type": "ListItem",
+              "position": {{ forloop.index }},
+              "name": {{ product.title | json }},
+              "url": {{ product.url | prepend: request.origin | json }}
+            }{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        ]
+      }
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "হোম", "item": {{ routes.root_url | prepend: request.origin | json }} },
+        { "@type": "ListItem", "position": 2, "name": {{ collection.title | json }}, "item": {{ collection.url | prepend: request.origin | json }} }
+      ]
+    }
+  </script>
+{%- endpaginate -%}
+
+{% schema %}
+{
+  "name": "GP collection",
+  "tag": "section",
+  "class": "rcb-section rcb-section--collection",
+  "settings": [
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "ক্যাটাগরির মেনু",
+      "default": "main-menu"
+    },
+    {
+      "type": "range",
+      "id": "per_page",
+      "label": "প্রতি পাতায় পণ্য",
+      "min": 12,
+      "max": 48,
+      "step": 4,
+      "default": 24
+    }
+  ]
+}
+{% endschema %}

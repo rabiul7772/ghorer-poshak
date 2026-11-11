@@ -1,0 +1,9 @@
+{%- comment -%}
+  Quantity stepper used by the product buy box. rcb-product.js reveals the ± buttons.
+  Params: value, label, name (true → input submits as `quantity`; false for a held cart line)
+{%- endcomment -%}
+<div class="rcb-step" data-rcb-step>
+  <button type="button" class="rcb-step__btn" data-rcb-step-by="-1" aria-label="কমান" hidden>&minus;</button>
+  <input class="rcb-step__input" type="number"{% if name %} name="quantity"{% endif %} value="{{ value | default: 1 }}" min="1" max="20" step="1" inputmode="numeric" autocomplete="off" aria-label="{{ label | escape }}" data-rcb-step-input>
+  <button type="button" class="rcb-step__btn" data-rcb-step-by="1" aria-label="বাড়ান" hidden>+</button>
+</div>

@@ -1,0 +1,397 @@
+{%- comment -%}
+  Ghorer Poshak cart: bag lines, delivery-area choice, optional discount ladder and the one-page
+  Cash-on-Delivery order form. Behaviour lives in assets/rcb-cart.js (quantity / delivery updates via
+  the Section Rendering API) and assets/rcb-order.js (order form). With no order server configured,
+  snippets/rcb-cart-checkout.liquid sends the buyer to Shopify checkout instead.
+{%- endcomment -%}
+{%- liquid
+  assign endpoint = settings.rcb_order_endpoint | strip
+  assign zone = cart.attributes.rcb_delivery_zone | default: 'outside'
+  unless zone == 'inside' or zone == 'outside'
+    assign zone = 'outside'
+  endunless
+  assign deliv_inside = settings.rcb_delivery_dhaka | default: 0
+  assign deliv_outside = settings.rcb_delivery_outside | default: 0
+  if zone == 'inside'
+    assign deliv = deliv_inside
+  else
+    assign deliv = deliv_outside
+  endif
+
+  assign items_taka = cart.items_subtotal_price | divided_by: 100
+  assign tiers = section.blocks | where: 'type', 'tier'
+  assign show_tiers = false
+  if section.settings.show_tiers and tiers.size > 0 and cart.item_count > 0
+    assign show_tiers = true
+  endif
+
+  comment
+    Tier progress. Steps sit at the centre of equal columns, so step k is at (2k+1)/(2n) of the track.
+  endcomment
+  assign earned = 0
+  assign tier_off = 0
+  assign next_min = 0
+  assign next_off = 0
+  assign fill = 100
+  if show_tiers
+    assign n = tiers.size
+    assign prev_min = 0
+    assign prev_pos = 0.0
+    assign found_next = false
+    for t in tiers
+      assign k = forloop.index0
+      assign pos = k | times: 2 | plus: 1 | times: 50.0 | divided_by: n
+      if items_taka >= t.settings.min
+        assign earned = forloop.index
+        assign tier_off = t.settings.off
+      elsif found_next == false
+        assign found_next = true
+        assign next_min = t.settings.min
+        assign next_off = t.settings.off
+        assign span_amt = t.settings.min | minus: prev_min
+        assign got = items_taka | minus: prev_min
+        if span_amt > 0
+          assign fill = pos | minus: prev_pos | times: got | divided_by: span_amt | plus: prev_pos
+        else
+          assign fill = pos
+        endif
+      endif
+      assign prev_min = t.settings.min
+      assign prev_pos = pos
+    endfor
+    if found_next == false
+      assign fill = 100
+    endif
+    assign fill = fill | round
+  endif
+  assign next_index = earned | plus: 1
+
+  if endpoint != blank
+    assign discount_taka = tier_off
+    assign goods_taka = items_taka
+  else
+    assign discount_taka = cart.total_discount | divided_by: 100
+    assign goods_taka = items_taka
+  endif
+  assign total_taka = goods_taka | minus: discount_taka | plus: deliv
+  assign total_cents = total_taka | times: 100
+-%}
+
+<script src="{{ 'rcb-order.js' | asset_url }}" defer></script>
+<script src="{{ 'rcb-cart.js' | asset_url }}" defer></script>
+
+<div
+  class="rcb rcb--cart"
+  data-rcb-cart
+  data-rcb-section="{{ section.id }}"
+  data-rcb-delivery-zone="{{ zone }}"
+  data-rcb-currency="{{ cart.currency.iso_code }}"
+  data-rcb-value="{{ total_taka }}"
+  data-rcb-subtotal="{{ goods_taka }}"
+  data-rcb-item-count="{{ cart.item_count }}"
+  data-rcb-content-ids="{% for item in cart.items %}{{ item.variant_id }}{% unless forloop.last %},{% endunless %}{% endfor %}"
+  data-rcb-contents="[{% for item in cart.items %}{&quot;id&quot;:&quot;{{ item.variant_id }}&quot;,&quot;quantity&quot;:{{ item.quantity }},&quot;price&quot;:{{ item.final_price | divided_by: 100.0 }}}{% unless forloop.last %},{% endunless %}{% endfor %}]"
+>
+  <div class="rcb-wrap">
+    {%- if cart.item_count == 0 -%}
+      <section class="rcbk-empty">
+        <h1 class="rcb-h2">{{ section.settings.empty_heading }}</h1>
+        <p class="rcb-sub">{{ section.settings.empty_text }}</p>
+        <a class="rcb-btn rcb-btn--primary rcb-btn--spaced" href="{{ section.settings.empty_button_url | default: routes.all_products_collection_url }}" data-rcb-mine>
+          {{- section.settings.empty_button_label }}
+          <span class="rcb-btn__arrow" aria-hidden="true">→</span>
+        </a>
+      </section>
+    {%- else -%}
+      <p class="rcbk-back">
+        <a href="{{ section.settings.back_url | default: routes.all_products_collection_url }}" data-rcb-mine>
+          <span aria-hidden="true">←</span>
+          {{ section.settings.back_label }}
+        </a>
+      </p>
+      <h1 class="rcbk-h1">
+        <span class="rcbk-h1__t">
+          {{ section.settings.heading }}
+          <span class="rcbk-count">{{ cart.item_count }} টি পণ্য</span>
+        </span>
+      </h1>
+
+      <section class="rcbk-doc">
+        <div class="rcbk-col-main">
+          <div class="rcbk-desk-itemshead">
+            <span>ব্যাগে থাকা পণ্য ({{ cart.item_count }})</span>
+            <span>পরিমাণ ও মূল্য</span>
+          </div>
+          <ul class="rcbk-items" role="list">
+            {%- for item in cart.items -%}
+              {%- liquid
+                assign line = forloop.index
+                assign more = item.quantity | plus: 1
+                assign less = item.quantity | minus: 1
+                assign can_more = true
+                if item.variant.inventory_management == 'shopify' and item.variant.inventory_policy == 'deny' and item.quantity >= item.variant.inventory_quantity
+                  assign can_more = false
+                endif
+                if item.quantity >= 100
+                  assign can_more = false
+                endif
+              -%}
+              <li class="rcbk-item">
+                <a class="rcbk-item__media" href="{{ item.url }}" tabindex="-1" aria-hidden="true" data-rcb-mine>
+                  {%- if item.image -%}
+                    {{ item.image | image_url: width: 168 | image_tag: widths: '84,168,252', sizes: '84px', alt: '', width: 84, height: 105, loading: 'lazy' }}
+                  {%- else -%}
+                    {{ 'product-apparel-1' | placeholder_svg_tag: 'rcbk-item__ph' }}
+                  {%- endif -%}
+                </a>
+                <div class="rcbk-item__body">
+                  <div class="rcbk-item__head">
+                    <a class="rcbk-item__t" href="{{ item.url }}" data-rcb-mine>{{ item.product.title | escape }}</a>
+                    <a
+                      class="rcbk-item__rm"
+                      href="{{ routes.cart_change_url }}?id={{ item.key }}&amp;quantity=0"
+                      data-rcb-mine
+                      data-rcb-qty
+                      data-rcb-line="{{ line }}"
+                      data-rcb-to="0"
+                      aria-label="সরিয়ে ফেলুন — {{ item.product.title | escape }}"
+                    >
+                      <span class="rcb-i"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.8 6.8h14.4M9.6 6.8V5.2a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v1.6M6.6 6.8l.8 12a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9l.8-12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    </a>
+                  </div>
+                  {%- unless item.product.has_only_default_variant -%}
+                    <p class="rcbk-item__unit">{{ item.variant.title | escape }}</p>
+                  {%- endunless -%}
+                  {%- if item.quantity > 1 -%}
+                    <p class="rcbk-item__unit">
+                      {{- item.final_price | money_without_trailing_zeros }} × {% render 'rcb-bn', text: item.quantity -%}
+                    </p>
+                  {%- endif -%}
+                  <div class="rcbk-item__foot">
+                    <div class="rcbk-step">
+                      {%- if item.quantity > 1 -%}
+                        <a class="rcbk-step__b" href="{{ routes.cart_change_url }}?line={{ line }}&amp;quantity={{ less }}" data-rcb-mine data-rcb-qty data-rcb-line="{{ line }}" data-rcb-to="{{ less }}" aria-label="একটি কমান — {{ item.product.title | escape }}">−</a>
+                      {%- else -%}
+                        <span class="rcbk-step__b is-off" aria-hidden="true">−</span>
+                      {%- endif -%}
+                      <span class="rcbk-step__n" data-rcb-qty-value><span class="rcb-sr">পরিমাণ:</span>{{ item.quantity }}</span>
+                      {%- if can_more -%}
+                        <a class="rcbk-step__b" href="{{ routes.cart_change_url }}?line={{ line }}&amp;quantity={{ more }}" data-rcb-mine data-rcb-qty data-rcb-line="{{ line }}" data-rcb-to="{{ more }}" aria-label="আরও একটি — {{ item.product.title | escape }}">+</a>
+                      {%- else -%}
+                        <span class="rcbk-step__b is-off" aria-hidden="true">+</span>
+                      {%- endif -%}
+                    </div>
+                    <span class="rcbk-item__line">{{ item.final_line_price | money_without_trailing_zeros }}</span>
+                  </div>
+                </div>
+              </li>
+            {%- endfor -%}
+          </ul>
+        </div>
+
+        <div class="rcbk-col-sidebar">
+          <div class="rcbk-desk-sidehead">
+            {%- render 'rcb-cart-icon', name: 'shield' -%}
+            <span>অর্ডার বিবরণ ও ক্যাশ অন ডেলিভারি</span>
+          </div>
+
+          <div class="rcbk-sum" aria-live="polite">
+            {%- if show_tiers -%}
+              <div
+                class="rcbk-tier{% if earned == tiers.size %} is-top{% endif %}"
+                data-rcb-tier
+                data-rcb-tier-step="{{ earned }}"
+                data-rcb-tier-fill="{{ fill }}"
+              >
+                {%- if earned > 0 -%}
+                  <p class="rcbk-tier__won">
+                    {%- render 'rcb-cart-icon', name: 'tick' -%}
+                    <span>অভিনন্দন! আপনি <b>{% render 'rcb-bn', text: tier_off %} টাকা ডিসকাউন্ট</b> পেয়েছেন</span>
+                  </p>
+                {%- endif -%}
+                {%- if next_min > 0 -%}
+                  {%- assign need = next_min | minus: items_taka -%}
+                  <p class="rcbk-tier__next">
+                    আরও <b>{% render 'rcb-cart-taka', amount: need %} টাকার</b> পণ্য নিলে <b>{% render 'rcb-cart-taka', amount: next_off %} টাকা ডিসকাউন্ট</b> পাবেন
+                  </p>
+                {%- endif -%}
+                <div class="rcbk-tier__ladder" style="--rcbk-tier-cols: {{ tiers.size }}">
+                  <div class="rcbk-tier__track" aria-hidden="true">
+                    <span class="rcbk-tier__fill" style="width: {{ fill }}%"></span>
+                  </div>
+                  <ol class="rcbk-tier__steps" role="list">
+                    {%- for t in tiers -%}
+                      <li class="rcbk-tier__step{% if forloop.index <= earned %} is-earned{% elsif forloop.index == next_index %} is-next{% endif %}" {{ t.shopify_attributes }}>
+                        <span class="rcbk-tier__dot" aria-hidden="true"></span>
+                        <span class="rcbk-tier__min">৳{% render 'rcb-cart-taka', amount: t.settings.min %}+ অর্ডারে</span>
+                        <span class="rcbk-tier__off">৳{% render 'rcb-cart-taka', amount: t.settings.off %} ডিসকাউন্ট</span>
+                      </li>
+                    {%- endfor -%}
+                  </ol>
+                </div>
+              </div>
+            {%- endif -%}
+
+            <div class="rcb-offer__row">
+              <span>পণ্যের দাম</span>
+              <span>{{ goods_taka | times: 100 | money_without_trailing_zeros }}</span>
+            </div>
+
+            {%- if discount_taka > 0 -%}
+              <div class="rcb-offer__row rcbk-sum__tier">
+                <span>ডিসকাউন্ট</span>
+                <span>−{{ discount_taka | times: 100 | money_without_trailing_zeros }}</span>
+              </div>
+            {%- endif -%}
+
+            <fieldset class="rcbk-delivery" data-rcb-delivery>
+              <legend>ডেলিভারি চার্জ</legend>
+              <div class="rcbk-delivery__choices">
+                <label class="rcbk-delivery__choice">
+                  <input type="radio" name="rcb-delivery-{{ section.id }}" value="inside" data-rcb-delivery-choice{% if zone == 'inside' %} checked{% endif %}>
+                  <span class="rcbk-delivery__area">ঢাকার ভেতরে</span>
+                  <span class="rcbk-delivery__price">{{ deliv_inside | times: 100 | money_without_trailing_zeros }}</span>
+                </label>
+                <label class="rcbk-delivery__choice">
+                  <input type="radio" name="rcb-delivery-{{ section.id }}" value="outside" data-rcb-delivery-choice{% if zone == 'outside' %} checked{% endif %}>
+                  <span class="rcbk-delivery__area">ঢাকার বাইরে</span>
+                  <span class="rcbk-delivery__price">{{ deliv_outside | times: 100 | money_without_trailing_zeros }}</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="rcb-offer__row rcb-offer__row--final">
+              <span class="rcbk-sum__label">সর্বমোট</span>
+              <span class="rcbk-sum__amt"><strong>{{ total_cents | money_without_trailing_zeros }}</strong></span>
+            </div>
+          </div>
+
+          {%- render 'rcb-cart-validate' -%}
+          {%- if endpoint == blank -%}
+            {%- render 'rcb-cart-checkout' -%}
+          {%- endif -%}
+
+          <section
+            class="rcbo"
+            data-rcb-order
+            {% if endpoint != blank %}
+              data-rcb-endpoint="{{ endpoint | escape }}"
+            {% endif %}
+            data-rcb-fail-line="সার্ভারে সমস্যা হওয়ায় অর্ডারটি নিশ্চিত করা যায়নি। আরেকবার অর্ডার বাটনে চাপ দিন। তাতেও না হলে নিচের নম্বরে মেসেজ দিন, আমরা ফোন করে অর্ডারটা নিয়ে নেব।"
+            data-rcb-wa-message="ওয়েবসাইটে অর্ডার করতে পারছি না। নিচের পণ্যগুলো নিতে চাই —&#10;&#10;[items]&#10;&#10;সর্বমোট: [total]&#10;&#10;নাম: [name]&#10;মোবাইল: [phone]&#10;ঠিকানা: [address]"
+          >
+            <form class="rcbo__form" data-rcb-order-form data-rcb-checkout-label="চেকআউটে নেওয়া হচ্ছে..." novalidate>
+              <div class="rcbo__hp" aria-hidden="true">
+                <label for="rcbo-website">Website</label>
+                <input type="text" id="rcbo-website" name="website" tabindex="-1" autocomplete="off">
+              </div>
+              <div class="rcbo__field" data-rcb-field="name">
+                <label class="rcbo__label" for="rcbo-name" data-rcb-label>আপনার নাম</label>
+                <div class="rcbo__box">
+                  <input class="rcbo__input" type="text" id="rcbo-name" name="name" autocomplete="name" enterkeyhint="next" placeholder="আপনার নাম লিখুন" data-rcb-input>
+                </div>
+                <p class="rcbo__err" data-rcb-error hidden></p>
+              </div>
+              <div class="rcbo__field" data-rcb-field="phone">
+                <label class="rcbo__label" for="rcbo-phone" data-rcb-label>মোবাইল নম্বর</label>
+                <div class="rcbo__box">
+                  <input class="rcbo__input" type="tel" inputmode="numeric" id="rcbo-phone" name="phone" autocomplete="tel" enterkeyhint="next" placeholder="01XXXXXXXXX" data-rcb-input>
+                </div>
+                <p class="rcbo__err" data-rcb-error hidden></p>
+              </div>
+              <div class="rcbo__field" data-rcb-field="address">
+                <label class="rcbo__label" for="rcbo-address" data-rcb-label>ঠিকানা</label>
+                <div class="rcbo__box rcbo__box--area">
+                  <textarea class="rcbo__input rcbo__input--area" id="rcbo-address" name="address" rows="3" autocomplete="street-address" enterkeyhint="done" placeholder="গ্রাম/এলাকা, থানা ও জেলা লিখুন" data-rcb-input></textarea>
+                </div>
+                <p class="rcbo__err" data-rcb-error hidden></p>
+              </div>
+              <button
+                type="submit"
+                class="rcb-btn rcb-btn--primary rcb-btn--block rcb-btn--lg rcbo__cta"
+                data-rcb-order-submit
+                data-rcb-sending-label="অর্ডার প্লেস করা হচ্ছে..."
+                data-rcb-slow-label="আর একটু অপেক্ষা করুন..."
+                data-rcb-stay-label="পেজটি খোলা রাখুন..."
+                data-rcb-placed-label="অর্ডার হয়েছে"
+                data-rcb-mine
+              >
+                <span class="rcbo__cta-top">ক্যাশ অন ডেলিভারিতে</span>
+                <span class="rcbo__cta-main">
+                  <span class="rcbo__tick rcb-i" aria-hidden="true">{%- render 'rcb-cart-icon', name: 'tick-raw' -%}</span>
+                  <span data-rcb-order-label>অর্ডার করুন</span>
+                  <span class="rcbo__dot" aria-hidden="true">·</span>
+                  <span class="rcbo__total" data-rcb-order-total>{{ total_cents | money_without_trailing_zeros }}</span>
+                </span>
+              </button>
+              <p class="rcbo__fail" data-rcb-order-fail role="alert" hidden></p>
+            </form>
+            <noscript>
+              <p class="rcbo__fail rcbo__fail--noscript">
+                অর্ডার ফর্মটি লোড হয়নি। নিচের নম্বরে ফোন বা হোয়াটসঅ্যাপ করে অর্ডার করে ফেলুন — একই দামে, একই ডেলিভারিতে।
+              </p>
+            </noscript>
+          </section>
+
+          {%- render 'rcb-cart-done', section: section -%}
+
+          <div class="rcbk-desk-trust">
+            <div class="rcbk-desk-trust__item">
+              {%- render 'rcb-cart-icon', name: 'tick' -%}
+              <span>১০০% ক্যাশ অন ডেলিভারি</span>
+            </div>
+            <div class="rcbk-desk-trust__item">
+              {%- render 'rcb-cart-icon', name: 'truck' -%}
+              <span>সারাদেশে হোম ডেলিভারি</span>
+            </div>
+            <div class="rcbk-desk-trust__item">
+              {%- render 'rcb-cart-icon', name: 'shield' -%}
+              <span>চেক করে পেমেন্ট করবেন</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="rcbk-help" data-rcb-help data-rcb-mine>
+        <h2 class="rcb-contact__h" data-rcb-help-done="ফোন নম্বর বা ঠিকানায় ভুল হয়েছে?">অর্ডারে সমস্যা হচ্ছে? সরাসরি কথা বলুন</h2>
+        <div class="rcbk-help__body rcb-contact">
+          {%- render 'rcb-contact' -%}
+        </div>
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Ghorer Poshak কার্ট",
+  "class": "rcb-cart-section",
+  "settings": [
+    { "type": "header", "content": "ব্যাগে পণ্য থাকলে" },
+    { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "অর্ডার নিশ্চিত করুন" },
+    { "type": "text", "id": "back_label", "label": "ফিরে যাওয়ার লিংকের লেখা", "default": "আরও দেখুন" },
+    { "type": "url", "id": "back_url", "label": "ফিরে যাওয়ার লিংক" },
+    { "type": "header", "content": "ব্যাগ খালি থাকলে" },
+    { "type": "text", "id": "empty_heading", "label": "শিরোনাম", "default": "আপনার ব্যাগ খালি" },
+    { "type": "text", "id": "empty_text", "label": "লেখা", "default": "ব্যাগে এখনো কিছু নেই। আমাদের কালেকশন একবার দেখে নিন।" },
+    { "type": "text", "id": "empty_button_label", "label": "বাটনের লেখা", "default": "কালেকশন দেখুন" },
+    { "type": "url", "id": "empty_button_url", "label": "বাটনের লিংক" },
+    { "type": "header", "content": "অর্ডার হয়ে গেলে", "info": "শুধু অর্ডার সার্ভার চালু থাকলে দেখানো হয়" },
+    { "type": "text", "id": "done_heading", "label": "ধন্যবাদ বার্তা", "default": "ঘরের পোশাকে অর্ডার করার জন্য ধন্যবাদ।" },
+    { "type": "textarea", "id": "done_body", "label": "পরের ধাপ", "default": "কিছুক্ষণের মধ্যেই আপনাকে ফোন করে অর্ডারটি কনফার্ম করা হবে। সাথে আরও কিছু নিতে চাইলে বা যেকোনো প্রশ্ন থাকলে ফোনে জানিয়ে দিবেন।" },
+    { "type": "header", "content": "ডিসকাউন্টের ধাপ" },
+    { "type": "checkbox", "id": "show_tiers", "label": "ডিসকাউন্টের ধাপ দেখান", "default": false, "info": "চালু করার আগে Shopify-তে একই পরিমাণের অটোমেটিক ডিসকাউন্ট বানিয়ে নিন, নইলে চেকআউটে ডিসকাউন্ট কাটবে না।" }
+  ],
+  "blocks": [
+    {
+      "type": "tier",
+      "name": "ডিসকাউন্ট ধাপ",
+      "limit": 4,
+      "settings": [
+        { "type": "number", "id": "min", "label": "ন্যূনতম অর্ডার (টাকা)", "default": 2000 },
+        { "type": "number", "id": "off", "label": "ডিসকাউন্ট (টাকা)", "default": 50 }
+      ]
+    }
+  ]
+}
+{% endschema %}

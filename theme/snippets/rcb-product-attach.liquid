@@ -1,0 +1,39 @@
+{%- comment -%}
+  "সাথে নিতে পারেন" accessory rows. Skips the current product, unavailable products and anything already in the cart.
+  Params: products (array of products), current (the page product)
+{%- endcomment -%}
+{%- liquid
+  assign in_cart = ','
+  for item in cart.items
+    assign in_cart = in_cart | append: item.product_id | append: ','
+  endfor
+  assign rows = 0
+-%}
+{%- capture attach_rows -%}
+  {%- for p in products -%}
+    {%- assign key = p.id | prepend: ',' | append: ',' -%}
+    {%- if p.id == current.id or p.available == false or in_cart contains key -%}{%- continue -%}{%- endif -%}
+    {%- assign v = p.selected_or_first_available_variant -%}
+    <form class="rcb-attach__row" action="{{ routes.cart_add_url }}" method="post" enctype="multipart/form-data" data-rcb-attach-form data-rcb-pid="{{ p.id }}" data-rcb-variant="{{ v.id }}" data-rcb-value="{{ v.price | divided_by: 100 }}" data-rcb-currency="{{ cart.currency.iso_code }}">
+      <input type="hidden" name="id" value="{{ v.id }}"><input type="hidden" name="quantity" value="1">
+      {%- if p.featured_media -%}
+        {{ p.featured_media | image_url: width: 112 | image_tag: class: 'rcb-line__img', alt: p.title, width: 56, height: 56, loading: 'lazy', decoding: 'async' }}
+      {%- endif -%}
+      <div class="rcb-attach__body">
+        <a class="rcb-attach__t" href="{{ p.url }}">{{ p.title | escape }}</a>
+        <span class="rcb-attach__price">{{ v.price | money_without_trailing_zeros }}</span>
+      </div>
+      <div class="rcb-attach__controls">
+        <button type="submit" class="rcb-attach__add" data-rcb-attach-add>সাথে নিন</button>
+      </div>
+    </form>
+    {%- assign rows = rows | plus: 1 -%}
+    {%- if rows >= 3 -%}{%- break -%}{%- endif -%}
+  {%- endfor -%}
+{%- endcapture -%}
+{%- if rows > 0 -%}
+  <section class="rcb-attach" data-rcb-attach>
+    <h2 class="rcb-attach__h">সাথে নিতে পারেন</h2>
+    {{- attach_rows -}}
+  </section>
+{%- endif -%}

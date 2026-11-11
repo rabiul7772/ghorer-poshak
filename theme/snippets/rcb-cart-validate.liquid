@@ -1,0 +1,84 @@
+{%- comment -%}
+  Order-form rules shared by assets/rcb-order.js and snippets/rcb-cart-checkout.liquid.
+  Publishes window.RCB_VALIDATE. Must render before rcb-order.js runs (it is deferred).
+{%- endcomment -%}
+<script>
+  (function () {
+    var COPY = {"required":"এই ঘরটি পূরণ করতে হবে।","name":{"label":"আপনার নাম","placeholder":"আপনার নাম লিখুন","invalid":"আপনার পুরো নাম লিখুন।"},"phone":{"label":"মোবাইল নম্বর","placeholder":"01XXXXXXXXX","invalid":"১১ ডিজিটের মোবাইল নম্বর লিখুন — যেমন 01712345678"},"address":{"label":"ঠিকানা","placeholder":"গ্রাম/এলাকা, থানা ও জেলা লিখুন","invalid":"ঠিকানা লিখুন।"}};
+
+    var LIMITS = {"nameMin":2,"nameMax":100,"addressMax":500,"itemsMax":50,"quantityMax":100};
+
+    function clean(value) {
+      if (typeof value !== 'string') return '';
+      return value
+        .replace(/[​-‍﻿]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function checkPhone(raw) {
+      const text = clean(raw);
+      if (!text) return { ok: false, value: '', message: COPY.required, reason: 'required' };
+
+      /* Zero of each script read: Arabic-Indic, Persian, Devanagari, Bangla, full-width. */
+      const DIGIT_ZEROS = [0x0660, 0x06F0, 0x0966, 0x09E6, 0xFF10];
+
+      let digits = text
+        .replace(/[٠-٩۰-۹०-९০-৯０-９]/g, function (digit) {
+          const code = digit.charCodeAt(0);
+          for (let i = 0; i < DIGIT_ZEROS.length; i++) {
+            if (code >= DIGIT_ZEROS[i] && code <= DIGIT_ZEROS[i] + 9) return String(code - DIGIT_ZEROS[i]);
+          }
+          return digit;
+        })
+        .replace(/\D/g, '');
+      if (digits.indexOf('00880') === 0) digits = digits.slice(2);
+      if (digits.indexOf('880') === 0) digits = digits.slice(3);
+      if (digits.indexOf('0') === 0) digits = digits.slice(1);
+
+      if (!/^1[3-9]\d{8}$/.test(digits)) {
+        const reason = digits.length < 10 ? 'too-short' : digits.length > 10 ? 'too-long' : 'mobile-prefix';
+        return { ok: false, value: '', message: COPY.phone.invalid, reason };
+      }
+      return { ok: true, value: '+880' + digits };
+    }
+
+    function checkName(raw) {
+      const text = clean(raw);
+      if (!text) return { ok: false, value: '', message: COPY.required };
+      if (text.length < LIMITS.nameMin) return { ok: false, value: '', message: COPY.name.invalid };
+      return { ok: true, value: text.slice(0, LIMITS.nameMax) };
+    }
+
+    function checkAddress(raw) {
+      const text = clean(raw);
+      if (!text) return { ok: false, value: '', message: COPY.required };
+      return { ok: true, value: text.slice(0, LIMITS.addressMax) };
+    }
+
+    function splitName(full) {
+      const text = clean(full);
+      const at = text.indexOf(' ');
+      if (at === -1) return { firstName: text, lastName: '' };
+      return { firstName: text.slice(0, at), lastName: text.slice(at + 1).trim() };
+    }
+
+    function checkOrderForm(input) {
+      const name = checkName(input && input.name);
+      if (!name.ok) return { ok: false, field: 'name', message: name.message };
+
+      const phone = checkPhone(input && input.phone);
+      if (!phone.ok) return { ok: false, field: 'phone', message: phone.message };
+
+      const address = checkAddress(input && input.address);
+      if (!address.ok) return { ok: false, field: 'address', message: address.message };
+
+      return {
+        ok: true,
+        value: { name: name.value, phone: phone.value, address: address.value },
+      };
+    }
+
+    window.RCB_VALIDATE = { COPY: COPY, LIMITS: LIMITS, clean: clean, checkPhone: checkPhone, checkName: checkName, checkAddress: checkAddress, splitName: splitName, checkOrderForm: checkOrderForm };
+  })();
+</script>

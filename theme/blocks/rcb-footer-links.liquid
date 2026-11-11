@@ -1,0 +1,82 @@
+{%- doc -%}
+  Ghorer Poshak footer links: renders the links of a menu (default `footer`) inline in the
+  footer utilities row, styled like the reference's single terms link.
+{%- enddoc -%}
+
+{%- assign footer_menu = block.settings.menu | default: linklists['footer'] -%}
+{%- if footer_menu.links.size > 0 -%}
+  <nav
+    class="footer-policy-links custom-typography custom-font-size"
+    aria-label="{{ footer_menu.title | escape }}"
+    {{ block.shopify_attributes }}
+  >
+    <ul class="footer-policy-links__list" role="list">
+      {%- for link in footer_menu.links -%}
+        <li>
+          <a
+            href="{{ link.url }}"
+            class="footer-utilities__text"
+            {% if link.current %}
+              aria-current="page"
+            {% endif %}
+          >
+            {{- link.title | escape -}}
+          </a>
+        </li>
+      {%- endfor -%}
+    </ul>
+  </nav>
+{%- endif -%}
+
+{% stylesheet %}
+  .footer-policy-links {
+    font-size: var(--font-size, 0.75rem);
+    text-transform: var(--text-transform, none);
+  }
+
+  .footer-policy-links__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media screen and (min-width: 750px) {
+    .footer-policy-links__list {
+      justify-content: flex-start;
+    }
+  }
+
+  .footer-policy-links a {
+    color: var(--color-utilities, var(--color-foreground-muted));
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .footer-policy-links a:hover {
+    color: var(--color-foreground);
+  }
+
+  .footer-policy-links a:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Footer links",
+  "tag": null,
+  "settings": [
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu",
+      "default": "footer"
+    }
+  ]
+}
+{% endschema %}

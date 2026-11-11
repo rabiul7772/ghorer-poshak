@@ -64,7 +64,7 @@
     "palette_secondary_button_border": "{{ settings.color_palette.foreground }}",
     "secondary_button_border_width": 1,
     "button_border_radius_secondary": 14,
-    "cart_type": "drawer",
+    "cart_type": "page",
     "cart_price_font": "subheading",
     "show_cart_note": false,
     "show_add_discount_code": true,
@@ -107,7 +107,17 @@
       "foreground": "#000000",
       "color1": "#333333",
       "color2": "#DFDFDF"
-    }
+    },
+    "rcb_phone": "01622553881",
+    "rcb_show_imo": true,
+    "rcb_address": "মিরপুর ১০, ঢাকা, বাংলাদেশ",
+    "rcb_delivery_dhaka": 80,
+    "rcb_delivery_outside": 120,
+    "rcb_whatsapp": "01622553881",
+    "rcb_facebook": "https://www.facebook.com/profile.php?id=61596223777885",
+    "rcb_messenger": "https://m.me/61596223777885",
+    "rcb_instagram": "https://www.instagram.com/ghorerposhak/",
+    "rcb_tiktok": ""
   },
   "presets": {
     "Horizon": {

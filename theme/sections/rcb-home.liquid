@@ -1,0 +1,354 @@
+{%- comment -%}
+  Ghorer Poshak home page: product-mosaic hero, collection bands, cash-on-delivery explainer,
+  customer review slider, FAQ and contact band. Rebuilt from the Ready Cart BD reference layout.
+{%- endcomment -%}
+{%- liquid
+  assign hero_collection = section.settings.hero_collection
+  if hero_collection == blank or hero_collection.products_count == 0
+    assign hero_collection = collections['saree']
+  endif
+  if hero_collection == blank or hero_collection.products_count == 0
+    assign hero_collection = collections.all
+  endif
+
+  assign hero_products = ''
+  assign hero_count = 0
+  for p in hero_collection.products limit: 24
+    if p.available and p.featured_media and hero_count < 3
+      assign hero_count = hero_count | plus: 1
+      if hero_products == ''
+        assign hero_products = p.handle
+      else
+        assign hero_products = hero_products | append: ',' | append: p.handle
+      endif
+    endif
+  endfor
+  if hero_count == 0
+    for p in hero_collection.products limit: 3
+      if p.featured_media
+        assign hero_count = hero_count | plus: 1
+        if hero_products == ''
+          assign hero_products = p.handle
+        else
+          assign hero_products = hero_products | append: ',' | append: p.handle
+        endif
+      endif
+    endfor
+  endif
+  assign hero_handles = hero_products | split: ','
+
+  assign dhaka = settings.rcb_delivery_dhaka | default: 80
+  assign outside = settings.rcb_delivery_outside | default: 120
+  capture delivery_line
+    echo 'ঢাকার ভেতরে ডেলিভারি চার্জ '
+    render 'rcb-bn', text: dhaka
+    echo ' টাকা, ঢাকার বাইরে '
+    render 'rcb-bn', text: outside
+    echo ' টাকা'
+  endcapture
+  assign cod_line = 'প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন।'
+  assign return_line = 'অবশ‍্যই রিটার্ন করা যাবে। প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন। পছন্দ না হলে শুধুমাত্র ডেলিভারি চার্জ দিয়ে সঙ্গে সঙ্গে রিটার্ন করে দিবেন।'
+  assign reviews = shop.metafields.custom.reviews.value
+  assign review_count = 0
+  if reviews != blank
+    assign review_count = reviews.size
+  endif
+-%}
+
+<div class="rcb rcb--home">
+  {%- comment -%} ---------- Hero ---------- {%- endcomment -%}
+  <section class="rcbh-hero rcbh-hero--plain rcbh-hero--product">
+    <div class="rcbh-hero__mosaic">
+      {%- if hero_count > 0 -%}
+        {%- for handle in hero_handles -%}
+          {%- assign hp = all_products[handle] -%}
+          <a class="rcbh-hero__product" href="{{ hp.url }}">
+            <picture>
+              {%- if forloop.first -%}
+                <source media="(min-width: 1024px)" srcset="{{ hp.featured_media | image_url: width: 500 }} 500w, {{ hp.featured_media | image_url: width: 800 }} 800w" sizes="420px">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="400" height="500" alt="{{ hp.title | escape }}" fetchpriority="high">
+              {%- else -%}
+                <source media="(min-width: 1024px)" srcset="{{ hp.featured_media | image_url: width: 300 }} 300w, {{ hp.featured_media | image_url: width: 600 }} 600w" sizes="260px">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="400" height="500" alt="{{ hp.title | escape }}">
+              {%- endif -%}
+            </picture>
+            <span class="rcbh-hero__cap">
+              <span class="rcbh-hero__capt">{{ hp.title | escape }}</span>
+              <span class="rcbh-hero__capp">{{ hp.price | money_without_trailing_zeros }}</span>
+            </span>
+          </a>
+        {%- endfor -%}
+      {%- else -%}
+        {%- comment -%} No products yet: keep the mosaic shape with tasteful placeholders. {%- endcomment -%}
+        {%- assign placeholders = 'product-apparel-1,product-apparel-2,product-apparel-3' | split: ',' -%}
+        {%- for ph in placeholders -%}
+          <a class="rcbh-hero__product rcbh-hero__product--placeholder" href="{{ routes.all_products_collection_url }}" aria-label="{{ section.settings.button_label | escape }}">
+            {{ ph | placeholder_svg_tag: 'rcbh-hero__ph' }}
+          </a>
+        {%- endfor -%}
+      {%- endif -%}
+    </div>
+    <div class="rcbh-hero__panel">
+      <div class="rcb-wrap">
+        {%- if section.settings.eyebrow != blank -%}
+          <p class="rcbh-hero__eyebrow">{{ section.settings.eyebrow }}</p>
+        {%- endif -%}
+        <h1 class="rcbh-hero__h">{{ section.settings.heading }}</h1>
+        {%- if section.settings.body != blank -%}
+          <p class="rcbh-hero__b">{{ section.settings.body }}</p>
+        {%- endif -%}
+        {%- if section.settings.button_label != blank -%}
+          <a href="{{ section.settings.button_link | default: routes.all_products_collection_url }}" class="rcb-btn rcb-btn--primary rcb-btn--block">
+            {{- section.settings.button_label -}}
+            <span class="rcb-btn__arrow" aria-hidden="true">→</span>
+          </a>
+        {%- endif -%}
+      </div>
+    </div>
+  </section>
+
+  {%- comment -%} ---------- Collection bands ---------- {%- endcomment -%}
+  {%- assign band_index = 0 -%}
+  {%- for block in section.blocks -%}
+    {%- if block.type != 'collection_band' -%}{%- continue -%}{%- endif -%}
+    {%- assign c = block.settings.collection -%}
+    {%- assign has_products = false -%}
+    {%- if c != blank and c.products_count > 0 -%}{%- assign has_products = true -%}{%- endif -%}
+    {%- unless has_products or request.design_mode -%}{%- continue -%}{%- endunless -%}
+    {%- assign band_index = band_index | plus: 1 -%}
+    {%- liquid
+      if c != blank
+        assign see_url = c.url | append: '?filter.v.availability=1'
+      else
+        assign see_url = routes.all_products_collection_url
+      endif
+      assign band_heading = block.settings.heading | default: c.title
+    -%}
+    <section class="rcbh-band{% if band_index == 1 %} rcbh-band--paper{% endif %}" id="rcbh-{{ c.handle | default: block.id }}" {{ block.shopify_attributes }}>
+      <div class="rcb-wrap">
+        <div class="rcbh-head">
+          <h2 class="rcb-h2">{{ band_heading }}</h2>
+          {%- if has_products -%}
+            <a class="rcbh-all" href="{{ see_url }}">{{ block.settings.see_all_label | default: 'সব দেখুন' }}<span aria-hidden="true"> →</span></a>
+          {%- endif -%}
+        </div>
+        {%- if has_products -%}
+          <div class="rcb-cards">
+            {%- for product in c.products limit: block.settings.limit -%}
+              {%- render 'rcb-card', product: product -%}
+            {%- endfor -%}
+            {%- if block.settings.see_all_card != blank -%}
+              <a class="rcb-card rcb-seeall" href="{{ see_url }}">
+                <span class="rcb-seeall__arrow" aria-hidden="true">→</span>
+                <span class="rcb-seeall__t">{{ block.settings.see_all_card }}</span>
+              </a>
+            {%- endif -%}
+          </div>
+        {%- else -%}
+          <p class="rcb-sub">থিম এডিটর নোট: এই কালেকশনে এখনো কোনো প্রোডাক্ট নেই, তাই লাইভ সাইটে এই অংশটা লুকানো থাকবে।</p>
+        {%- endif -%}
+      </div>
+    </section>
+  {%- endfor -%}
+
+  {%- comment -%} ---------- Cash on delivery ---------- {%- endcomment -%}
+  <section class="rcb-cod">
+    <div class="rcb-wrap">
+      <span class="rcb-cod__seal">{% render 'rcb-icon', name: 'shield' %}</span>
+      <h2 class="rcb-cod__h">{{ section.settings.cod_heading }}</h2>
+      <p class="rcb-cod__body">{{ section.settings.cod_body }}</p>
+      <ol class="rcb-cod__steps">
+        <li>
+          <span class="rcb-cod__stepn" aria-hidden="true">১</span>
+          <span class="rcb-cod__stept">অর্ডার করবেন</span>
+        </li>
+        <li>
+          <span class="rcb-cod__stepn" aria-hidden="true">২</span>
+          <span class="rcb-cod__stept">খুলে চেক করে দেখবেন</span>
+        </li>
+        <li>
+          <span class="rcb-cod__stepn" aria-hidden="true">৩</span>
+          <span class="rcb-cod__stept">পছন্দ হলে পেমেন্ট করবেন</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  {%- comment -%} ---------- Customer reviews ---------- {%- endcomment -%}
+  {%- if review_count > 0 or request.design_mode -%}
+    <section class="rcbh-band">
+      <div class="rcb-wrap">
+        {%- render 'rcb-proof', images: reviews, heading: 'কাস্টমার রিভিউ', sub: 'প্রাইভেসির কারণে নাম ও নম্বর ঢেকে দেওয়া হয়েছে।' -%}
+        {%- if section.settings.proof_cta_label != blank -%}
+          <a href="{{ section.settings.proof_cta_link | default: routes.all_products_collection_url }}" class="rcb-btn rcb-btn--primary rcb-btn--block rcb-btn--spaced">
+            {{- section.settings.proof_cta_label -}}
+            <span class="rcb-btn__arrow" aria-hidden="true">→</span>
+          </a>
+        {%- endif -%}
+      </div>
+    </section>
+  {%- endif -%}
+
+  {%- comment -%} ---------- FAQ ---------- {%- endcomment -%}
+  <section class="rcbh-band rcbh-band--warm">
+    <div class="rcb-wrap">
+      <h2 class="rcb-h2">যেসব প্রশ্ন সবাই করেন</h2>
+      <details class="rcb-faq">
+        <summary>অর্ডার করতে কি আগে টাকা দিতে হবে?</summary>
+        <div class="rcb-faq__a">{{ cod_line }}</div>
+      </details>
+      <details class="rcb-faq">
+        <summary>ডেলিভারি চার্জ কত?</summary>
+        <div class="rcb-faq__a">{{ delivery_line }}</div>
+      </details>
+      <details class="rcb-faq">
+        <summary>পছন্দ না হলে রিটার্ন করা যাবে?</summary>
+        <div class="rcb-faq__a">{{ return_line }}</div>
+      </details>
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'faq' and block.settings.question != blank -%}
+          <details class="rcb-faq" {{ block.shopify_attributes }}>
+            <summary>{{ block.settings.question }}</summary>
+            <div class="rcb-faq__a">{{ block.settings.answer }}</div>
+          </details>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
+  </section>
+
+  {%- comment -%} ---------- Contact ---------- {%- endcomment -%}
+  <section class="rcbh-band rcbh-contact">
+    <div class="rcb-wrap">
+      <h2 class="rcb-h2 rcbh-contact__h">যোগাযোগ</h2>
+      {%- render 'rcb-contact' -%}
+      {%- if settings.rcb_address != blank -%}
+        <ul class="rcbh-contact__meta">
+          <li>
+            <span class="rcb-i">{% render 'rcb-icon', name: 'home' %}</span>
+            <span>{{ settings.rcb_address }}</span>
+          </li>
+        </ul>
+      {%- endif -%}
+    </div>
+  </section>
+</div>
+
+{%- liquid
+  assign phone_local = settings.rcb_phone | remove: ' ' | remove: '-' | remove: '+'
+  if phone_local.size == 13
+    assign phone_local = phone_local | slice: 2, 11
+  endif
+  assign same_as = ''
+  if settings.rcb_facebook != blank
+    assign same_as = same_as | append: ',' | append: settings.rcb_facebook
+  endif
+  if settings.rcb_instagram != blank
+    assign same_as = same_as | append: ',' | append: settings.rcb_instagram
+  endif
+  if settings.rcb_tiktok != blank
+    assign same_as = same_as | append: ',' | append: settings.rcb_tiktok
+  endif
+  assign same_as = same_as | remove_first: ',' | split: ','
+-%}
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": {{ shop.url | append: '/#organization' | json }},
+    "name": {{ shop.name | json }},
+    "url": {{ shop.url | append: '/' | json }}
+    {%- if phone_local != blank -%},
+    "telephone": {{ phone_local | slice: 1, 10 | prepend: '+880' | json }}
+    {%- endif -%}
+    {%- if settings.rcb_address != blank -%},
+    "address": { "@type": "PostalAddress", "streetAddress": {{ settings.rcb_address | json }}, "addressCountry": "BD" }
+    {%- endif -%}
+    {%- if same_as.size > 0 -%},
+    "sameAs": {{ same_as | json }}
+    {%- endif -%},
+    "areaServed": "BD"
+  }
+</script>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type":"Question","name":"অর্ডার করতে কি আগে টাকা দিতে হবে?","acceptedAnswer":{"@type":"Answer","text":{{ cod_line | json }}}},
+      {"@type":"Question","name":"ডেলিভারি চার্জ কত?","acceptedAnswer":{"@type":"Answer","text":{{ delivery_line | strip | json }}}},
+      {"@type":"Question","name":"পছন্দ না হলে রিটার্ন করা যাবে?","acceptedAnswer":{"@type":"Answer","text":{{ return_line | json }}}}
+      {%- for block in section.blocks -%}
+        {%- if block.type == 'faq' and block.settings.question != blank -%},
+      {"@type":"Question","name":{{ block.settings.question | json }},"acceptedAnswer":{"@type":"Answer","text":{{ block.settings.answer | strip_html | json }}}}
+        {%- endif -%}
+      {%- endfor %}
+    ]
+  }
+</script>
+
+{% stylesheet %}
+  /* Zero-product state: placeholder art inside the hero mosaic tiles. */
+  .rcbh-hero__product--placeholder { background: var(--rcb-maroon-soft); }
+  .rcbh-hero__product--placeholder .rcbh-hero__ph {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: var(--rcb-maroon);
+    opacity: 0.35;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Ghorer Poshak হোম",
+  "tag": "section",
+  "class": "rcb-home-section",
+  "settings": [
+    { "type": "header", "content": "হিরো" },
+    { "type": "collection", "id": "hero_collection", "label": "হিরোতে কোন কালেকশনের প্রোডাক্ট দেখাবে", "info": "খালি থাকলে 'saree' কালেকশন, তারপর সব প্রোডাক্ট থেকে প্রথম ৩টা" },
+    { "type": "text", "id": "eyebrow", "label": "ছোট লেখা (উপরে)", "default": "ঘরের মানুষের জন্য ঘরের পোশাক" },
+    { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "সেরা দামে, সেরা মানের পোশাক" },
+    { "type": "textarea", "id": "body", "label": "বিবরণ", "default": "প্রোডাক্ট হাতে পেয়ে চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন।" },
+    { "type": "text", "id": "button_label", "label": "বাটনের লেখা", "default": "সব কালেকশন দেখুন" },
+    { "type": "url", "id": "button_link", "label": "বাটনের লিংক", "default": "/collections/all" },
+    { "type": "header", "content": "ক্যাশ অন ডেলিভারি" },
+    { "type": "text", "id": "cod_heading", "label": "শিরোনাম", "default": "ক্যাশ অন ডেলিভারি" },
+    { "type": "textarea", "id": "cod_body", "label": "বিবরণ", "default": "প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন। পছন্দ না হলে শুধুমাত্র ডেলিভারি চার্জ দিয়ে সঙ্গে সঙ্গে রিটার্ন করে দিবেন।" },
+    { "type": "header", "content": "কাস্টমার রিভিউ", "info": "রিভিউর ছবিগুলো স্টোর মেটাফিল্ড custom.reviews (ফাইল লিস্ট) থেকে আসে।" },
+    { "type": "text", "id": "proof_cta_label", "label": "রিভিউর নিচের বাটন", "default": "পোশাকগুলো দেখুন" },
+    { "type": "url", "id": "proof_cta_link", "label": "বাটনের লিংক", "default": "/collections/all" }
+  ],
+  "blocks": [
+    {
+      "type": "collection_band",
+      "name": "কালেকশন সারি",
+      "settings": [
+        { "type": "collection", "id": "collection", "label": "কালেকশন" },
+        { "type": "text", "id": "heading", "label": "শিরোনাম", "info": "খালি থাকলে কালেকশনের নাম" },
+        { "type": "text", "id": "see_all_label", "label": "উপরের 'সব দেখুন' লেখা", "default": "সব দেখুন" },
+        { "type": "text", "id": "see_all_card", "label": "শেষ কার্ডের লেখা", "default": "সব দেখুন" },
+        { "type": "range", "id": "limit", "label": "কয়টা প্রোডাক্ট দেখাবে", "min": 2, "max": 24, "step": 1, "default": 12 }
+      ]
+    },
+    {
+      "type": "faq",
+      "name": "বাড়তি প্রশ্ন (FAQ)",
+      "settings": [
+        { "type": "text", "id": "question", "label": "প্রশ্ন" },
+        { "type": "textarea", "id": "answer", "label": "উত্তর" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Ghorer Poshak হোম",
+      "blocks": [
+        { "type": "collection_band", "settings": { "heading": "আমাদের শাড়িগুলো", "see_all_card": "সব শাড়ি দেখুন" } },
+        { "type": "collection_band", "settings": { "heading": "শার্ট কালেকশন", "see_all_card": "সব শার্ট দেখুন" } },
+        { "type": "collection_band", "settings": { "heading": "প্যান্ট কালেকশন", "see_all_card": "সব প্যান্ট দেখুন" } },
+        { "type": "collection_band", "settings": { "heading": "টি-শার্ট কালেকশন", "see_all_card": "সব টি-শার্ট দেখুন" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

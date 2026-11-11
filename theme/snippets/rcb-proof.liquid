@@ -1,0 +1,98 @@
+{%- comment -%}
+  Customer review slider + fullscreen image viewer.
+  Usage: {% render 'rcb-proof', images: shop.metafields.custom.reviews.value, heading: 'কাস্টমার রিভিউ', sub: 'প্রাইভেসির কারণে নাম ও নম্বর ঢেকে দেওয়া হয়েছে।' %}
+  images: array of image objects (list.file_reference metafield value). Empty → nothing rendered outside the theme editor.
+{%- endcomment -%}
+{%- liquid
+  assign proof_count = 0
+  if images != blank
+    assign proof_count = images.size
+  endif
+  assign proof_heading = heading | default: 'কাস্টমার রিভিউ'
+-%}
+{%- if proof_count > 0 or request.design_mode -%}
+  <section class="rcb-section-proof rcb-block">
+    <h2 class="rcb-h2">{{ proof_heading }}</h2>
+    {%- if sub != blank -%}<p class="rcb-sub">{{ sub }}</p>{%- endif -%}
+    {%- if proof_count > 0 -%}
+      <div class="rcb-proof" data-rcb-proof data-rcb-image-gallery>
+        <div class="rcb-proof__track" data-rcb-proof-track dir="ltr">
+          {%- for image in images -%}
+            {%- capture proof_alt -%}{{ proof_heading }} — ছবি {% render 'rcb-bn', text: forloop.index %}{%- endcapture -%}
+            <a
+              class="rcb-proof__slide"
+              href="{{ image | image_url: width: 1400 }}"
+              data-rcb-t="proof-open"
+              data-rcb-image-open
+              data-rcb-image-primary
+              data-rcb-image-id="{{ forloop.index0 }}"
+            >
+              <span class="rcb-proof__media">
+                {{
+                  image
+                  | image_url: width: 1000
+                  | image_tag:
+                    widths: '700,1000,1200',
+                    sizes: '(min-width: 1024px) 275px, (min-width: 750px) 416px, (min-width: 480px) 416px, 92vw',
+                    alt: proof_alt,
+                    loading: 'lazy',
+                    decoding: 'async'
+                }}
+              </span>
+              <span class="rcb-image-expand">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6"/></svg>
+                <span class="rcb-sr">বড় করে দেখুন</span>
+              </span>
+            </a>
+          {%- endfor -%}
+        </div>
+        {%- if proof_count > 1 -%}
+          <nav class="rcb-proof__controls" aria-label="Review pages">
+            <button type="button" class="rcb-proof__arrow" data-rcb-proof-step="-1" aria-label="আগের ছবি" disabled>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
+            </button>
+            <span class="rcb-proof__count" data-rcb-proof-count>১/{% render 'rcb-bn', text: proof_count %}</span>
+            <button type="button" class="rcb-proof__arrow" data-rcb-proof-step="1" aria-label="পরের ছবি">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>
+            </button>
+          </nav>
+        {%- endif -%}
+        <dialog class="rcb-image-viewer rcb-image-viewer--scrollable" data-rcb-image-viewer aria-label="{{ proof_heading | escape }}">
+          <div class="rcb-image-viewer__toolbar">
+            <div class="rcb-image-viewer__nav" data-rcb-image-nav hidden>
+              <button type="button" class="rcb-image-viewer__step" data-rcb-image-step="-1" aria-label="আগের ছবি">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span class="rcb-image-viewer__count" data-rcb-image-count role="status" aria-live="polite" aria-atomic="true"></span>
+              <button type="button" class="rcb-image-viewer__step" data-rcb-image-step="1" aria-label="পরের ছবি">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+            <div class="rcb-image-viewer__actions">
+              <div class="rcb-image-viewer__zoom">
+                <button type="button" class="rcb-image-viewer__zoom-button" data-rcb-image-zoom="-1" aria-label="ছোট করুন" disabled>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M7.5 10.5h6"/></svg>
+                </button>
+                <button type="button" class="rcb-image-viewer__zoom-button" data-rcb-image-zoom="1" aria-label="বড় করুন">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4M7.5 10.5h6M10.5 7.5v6"/></svg>
+                </button>
+              </div>
+              <button type="button" class="rcb-image-viewer__close" data-rcb-image-close aria-label="বন্ধ করুন" autofocus>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="rcb-image-viewer__frame" data-rcb-image-frame>
+            <img alt="" width="1" height="1" draggable="false" data-rcb-image-full>
+          </div>
+        </dialog>
+        <script src="{{ 'rcb-image-viewer.js' | asset_url }}" type="module"></script>
+      </div>
+    {%- else -%}
+      <p class="rcb-sub">থিম এডিটর নোট: স্টোরের মেটাফিল্ড <code>custom.reviews</code>-এ রিভিউর স্ক্রিনশটগুলো যোগ করলে এখানে স্লাইডার দেখাবে।</p>
+    {%- endif -%}
+  </section>
+  {%- if proof_count > 1 -%}
+    <script src="{{ 'rcb-proof.js' | asset_url }}" defer></script>
+  {%- endif -%}
+{%- endif -%}

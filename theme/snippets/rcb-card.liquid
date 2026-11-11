@@ -1,0 +1,39 @@
+{%- comment -%}
+  Product card used on home, collection, product and search pages.
+  Params: product (required), lazy (default true), class (extra classes)
+{%- endcomment -%}
+{%- liquid
+  assign price = product.price
+  assign compare = product.compare_at_price
+  assign img = product.featured_media
+  assign on_sale = false
+  if compare > price
+    assign on_sale = true
+    assign off = compare | minus: price | times: 100 | divided_by: compare
+  endif
+-%}
+<a class="rcb-card{% if class %} {{ class }}{% endif %}" href="{{ product.url }}" data-rcb-card data-rcb-pid="{{ product.id }}" data-rcb-handle="{{ product.handle }}" data-rcb-value="{{ price | divided_by: 100 }}" data-rcb-currency="{{ cart.currency.iso_code }}">
+  <div class="rcb-card__media">
+    <div class="rcb-card__flags">
+      {%- unless product.available -%}<span class="rcb-card__sold-out">স্টক শেষ</span>{%- endunless -%}
+      {%- if on_sale and off > 0 -%}<span class="rcb-card__off">{{ off }}% ছাড়</span>{%- endif -%}
+    </div>
+    {%- if img -%}
+      {%- if lazy == false -%}
+        {{ img | image_url: width: 500 | image_tag: widths: '240,320,400,500,640', sizes: '(min-width: 1024px) 280px, 50vw', alt: product.title, width: 400, height: 500, fetchpriority: 'high' }}
+      {%- else -%}
+        {{ img | image_url: width: 500 | image_tag: widths: '240,320,400,500,640', sizes: '(min-width: 1024px) 280px, 50vw', alt: product.title, width: 400, height: 500, loading: 'lazy' }}
+      {%- endif -%}
+    {%- else -%}
+      {{ 'product-apparel-1' | placeholder_svg_tag: 'rcb-card__placeholder' }}
+    {%- endif -%}
+  </div>
+  <div class="rcb-card__body">
+    <h3 class="rcb-card__t">{{ product.title | escape }}</h3>
+    <div class="rcb-card__prices">
+      <span class="rcb-card__price">{{ price | money_without_trailing_zeros }}</span>
+      {%- if on_sale -%}<s class="rcb-compare">{{ compare | money_without_trailing_zeros }}</s>{%- endif -%}
+    </div>
+    <span class="rcb-card__go">{% if product.available %}দেখুন ও অর্ডার করুন{% else %}বিস্তারিত দেখুন{% endif %}</span>
+  </div>
+</a>

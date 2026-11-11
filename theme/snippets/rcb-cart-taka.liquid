@@ -1,0 +1,16 @@
+{%- comment -%}
+  Prints a whole taka amount with Bangla digits and a thousands comma, e.g. 1800 -> ১,৮০০.
+  Params: amount (number of taka, not cents)
+{%- endcomment -%}
+{%- liquid
+  assign n = amount | default: 0 | floor
+  if n >= 1000
+    assign th = n | divided_by: 1000
+    assign r = n | modulo: 1000
+    assign rs = r | prepend: '00' | slice: -3, 3
+    assign out = th | append: ',' | append: rs
+  else
+    assign out = n | append: ''
+  endif
+-%}
+{%- render 'rcb-bn', text: out -%}

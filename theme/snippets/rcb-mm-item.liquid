@@ -1,0 +1,14 @@
+{%- doc -%}
+  One category link inside a Ghorer Poshak mega menu group.
+
+  @param {object} link - Menu link.
+
+  @example
+  {% render 'rcb-mm-item', link: child %}
+{%- enddoc -%}
+<li>
+  <a href="{{ link.url }}" class="rcb-mm-cat-link"{% if link.current %} aria-current="page"{% endif %}>
+    <span class="rcb-mm-cat-title">{{ link.title | escape }}</span>
+    <span class="rcb-mm-cat-arrow" aria-hidden="true">→</span>
+  </a>
+</li>

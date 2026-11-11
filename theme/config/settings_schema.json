@@ -8,6 +8,92 @@
     "theme_support_url": "https://support.shopify.com/"
   },
   {
+    "name": "Ghorer Poshak",
+    "settings": [
+      {
+        "type": "header",
+        "content": "যোগাযোগ"
+      },
+      {
+        "type": "text",
+        "id": "rcb_phone",
+        "label": "ফোন নম্বর",
+        "info": "যেমন 01XXXXXXXXX",
+        "default": ""
+      },
+      {
+        "type": "text",
+        "id": "rcb_whatsapp",
+        "label": "হোয়াটসঅ্যাপ নম্বর",
+        "info": "খালি রাখলে ফোন নম্বরটাই ব্যবহার হবে"
+      },
+      {
+        "type": "url",
+        "id": "rcb_messenger",
+        "label": "মেসেঞ্জার লিংক (m.me/...)"
+      },
+      {
+        "type": "checkbox",
+        "id": "rcb_show_imo",
+        "label": "ইমো বাটন দেখান",
+        "default": true
+      },
+      {
+        "type": "url",
+        "id": "rcb_facebook",
+        "label": "ফেসবুক পেজ"
+      },
+      {
+        "type": "url",
+        "id": "rcb_instagram",
+        "label": "ইনস্টাগ্রাম"
+      },
+      {
+        "type": "url",
+        "id": "rcb_tiktok",
+        "label": "টিকটক"
+      },
+      {
+        "type": "text",
+        "id": "rcb_address",
+        "label": "ঠিকানা",
+        "default": "বাংলাদেশ"
+      },
+      {
+        "type": "header",
+        "content": "ডেলিভারি"
+      },
+      {
+        "type": "number",
+        "id": "rcb_delivery_dhaka",
+        "label": "ঢাকার ভেতরে ডেলিভারি চার্জ (টাকা)",
+        "default": 80
+      },
+      {
+        "type": "number",
+        "id": "rcb_delivery_outside",
+        "label": "ঢাকার বাইরে ডেলিভারি চার্জ (টাকা)",
+        "default": 120
+      },
+      {
+        "type": "text",
+        "id": "rcb_delivery_time",
+        "label": "ডেলিভারি সময়",
+        "default": "৭২ ঘণ্টার মধ্যে হাতে পাবেন"
+      },
+      {
+        "type": "header",
+        "content": "অর্ডার ফর্ম"
+      },
+      {
+        "type": "url",
+        "id": "rcb_order_endpoint",
+        "label": "অর্ডার সার্ভার (ঐচ্ছিক)",
+        "info": "খালি থাকলে কাস্টমার Shopify চেকআউট দিয়ে অর্ডার করবেন"
+      }
+    ]
+  },
+  {
     "name": "t:names.logo_and_favicon",
     "settings": [
       {

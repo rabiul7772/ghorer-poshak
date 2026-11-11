@@ -1,0 +1,167 @@
+{%- comment -%}
+  Ghorer Poshak search results, in the collection page's visual language.
+  Products render as rcb-card; pages/articles as a simple text card. When there is no query or no
+  result, department rails from the menu are shown so the visitor is never at a dead end.
+{%- endcomment -%}
+{%- liquid
+  assign menu = linklists[section.settings.menu]
+  assign terms = search.terms | strip
+-%}
+{%- paginate search.results by section.settings.per_page -%}
+  <div class="rcb rcb--collection rcb--search">
+    <div class="rcb-wrap rcbc-top">
+      <nav aria-label="breadcrumb">
+        <ol class="rcb-crumbs">
+          <li><a href="{{ routes.root_url }}">হোম</a></li>
+          <li><span aria-current="page">খুঁজুন</span></li>
+        </ol>
+      </nav>
+
+      <form class="rcbs-form" action="{{ routes.search_url }}" method="get" role="search">
+        <input type="hidden" name="options[prefix]" value="last">
+        <label class="rcb-sr" for="rcbs-q">পণ্য খুঁজুন</label>
+        <div class="rcbo__box rcbs-form__box">
+          <input class="rcbo__input" id="rcbs-q" type="search" name="q" value="{{ terms | escape }}" placeholder="কী খুঁজছেন? যেমন: শাড়ি, শার্ট" autocomplete="off">
+        </div>
+        <button type="submit" class="rcb-btn rcb-btn--primary rcbs-form__btn">খুঁজুন</button>
+      </form>
+
+      <div class="rcbc-main">
+        <div class="rcbc-header-bar">
+          <div>
+            <h1 class="rcbc-h1">
+              {%- if terms != blank -%}“{{ terms | escape }}” — এর ফলাফল{%- else -%}খুঁজুন{%- endif -%}
+            </h1>
+            {%- if terms != blank and search.results_count > 0 -%}
+              <p class="rcbc-count-summary">{{ search.results_count }}টি ফলাফল</p>
+            {%- endif -%}
+          </div>
+        </div>
+
+        {%- if terms != blank and search.results_count > 0 -%}
+          <div class="rcb-cards">
+            {%- for item in search.results -%}
+              {%- if item.object_type == 'product' -%}
+                {%- if forloop.index <= 2 and paginate.current_page == 1 -%}
+                  {%- render 'rcb-card', product: item, lazy: false -%}
+                {%- else -%}
+                  {%- render 'rcb-card', product: item -%}
+                {%- endif -%}
+              {%- else -%}
+                <a class="rcbs-text" href="{{ item.url }}">
+                  <span class="rcbs-text__t">{{ item.title | escape }}</span>
+                  {%- assign excerpt = item.content | strip_html | truncatewords: 18 -%}
+                  {%- if excerpt != blank -%}<span class="rcbs-text__b">{{ excerpt }}</span>{%- endif -%}
+                  <span class="rcb-card__cta">পড়ুন <span aria-hidden="true">→</span></span>
+                </a>
+              {%- endif -%}
+            {%- endfor -%}
+          </div>
+
+          {%- if paginate.pages > 1 -%}
+            <nav aria-label="পাতা">
+              <ul class="rcb-page">
+                {%- for part in paginate.parts -%}
+                  <li>
+                    {%- if part.is_link -%}
+                      <a href="{{ part.url }}">{{ part.title }}</a>
+                    {%- elsif part.title == paginate.current_page -%}
+                      <span aria-current="page">{{ part.title }}</span>
+                    {%- else -%}
+                      <span>{{ part.title }}</span>
+                    {%- endif -%}
+                  </li>
+                {%- endfor -%}
+              </ul>
+            </nav>
+          {%- endif -%}
+        {%- else -%}
+          {%- if terms != blank -%}
+            <p class="rcb-empty">
+              “{{ terms | escape }}” — এর সাথে মেলে এমন কিছু পাওয়া যায়নি। অন্য শব্দ দিয়ে চেষ্টা করুন।<br>
+              <a class="rcbc-empty__link" href="{{ routes.collections_url }}">সব ক্যাটাগরি দেখুন →</a>
+            </p>
+          {%- endif -%}
+
+          {%- capture rails -%}
+            {%- for link in menu.links -%}
+              {%- if link.type == 'collection_link' -%}
+                {%- render 'rcb-collection-rail', rail_collection: link.object, title: link.title -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endcapture -%}
+          {%- if rails != blank -%}
+            <section class="rcb-section-cross rcb-block">
+              <h2 class="rcb-h2">{% if terms != blank %}এগুলো দেখতে পারেন{% else %}জনপ্রিয় ক্যাটাগরি{% endif %}</h2>
+              {{ rails }}
+            </section>
+          {%- endif -%}
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+{%- endpaginate -%}
+
+{% stylesheet %}
+  .rcbs-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+    max-width: 640px;
+    margin: 0 0 1.5rem;
+  }
+  .rcbs-form__box {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .rcbs-form__box .rcbo__input {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .rcbs-form__btn {
+    flex: none;
+    min-height: auto;
+  }
+  .rcb--search .rcbc-h1 {
+    overflow-wrap: anywhere;
+  }
+  @media (min-width: 1024px) {
+    .rcb--search .rcbc-main .rcb-cards {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .rcbs-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 1rem;
+    border: 1px solid var(--rcb-line);
+    border-radius: var(--rcb-radius);
+    background: var(--rcb-paper);
+    color: var(--rcb-ink);
+    text-decoration: none;
+  }
+  .rcbs-text:hover {
+    border-color: var(--rcb-maroon);
+  }
+  .rcbs-text__t {
+    font-weight: 600;
+    line-height: 1.6;
+  }
+  .rcbs-text__b {
+    font-size: 0.8125rem;
+    color: var(--rcb-muted);
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "GP search",
+  "tag": "section",
+  "class": "rcb-section rcb-section--search",
+  "settings": [
+    { "type": "link_list", "id": "menu", "label": "ক্যাটাগরির মেনু", "default": "main-menu" },
+    { "type": "range", "id": "per_page", "label": "প্রতি পাতায় ফলাফল", "min": 12, "max": 48, "step": 4, "default": 24 }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,142 @@
+{%- comment -%}
+  Ghorer Poshak contact page: phone / messaging card + address on one side,
+  Shopify contact form (sends to the store email) on the other.
+{%- endcomment -%}
+<div class="rcb rcb--contact">
+  <div class="rcb-wrap rcbx-wrap">
+    <nav aria-label="breadcrumb">
+      <ol class="rcb-crumbs">
+        <li><a href="{{ routes.root_url }}">হোম</a></li>
+        <li><span aria-current="page">{{ page.title | escape }}</span></li>
+      </ol>
+    </nav>
+    <h1 class="rcbi-h1">{{ page.title | escape }}</h1>
+    {%- if section.settings.subheading != blank -%}
+      <p class="rcbi-sub">{{ section.settings.subheading | escape }}</p>
+    {%- endif -%}
+
+    <div class="rcbx-grid">
+      <div class="rcbx-side">
+        <h2 class="rcb-h2">{{ section.settings.direct_heading | escape }}</h2>
+        {%- render 'rcb-contact' -%}
+        {%- if settings.rcb_address != blank -%}
+          <ul class="rcbh-contact__meta rcbx-meta">
+            <li><span class="rcb-i">{% render 'rcb-icon', name: 'pin' %}</span><span>{{ settings.rcb_address | escape }}</span></li>
+          </ul>
+        {%- endif -%}
+        {%- if page.content != blank -%}
+          <div class="rcbx-note">{{ page.content }}</div>
+        {%- endif -%}
+      </div>
+
+      <div class="rcbx-formcard">
+        <h2 class="rcb-h2">{{ section.settings.form_heading | escape }}</h2>
+        {%- form 'contact', id: 'RcbContactForm', class: 'rcb-form rcbx-form' -%}
+          {%- if form.posted_successfully? -%}
+            <p class="rcbx-msg rcbx-msg--ok" role="status">ধন্যবাদ! আপনার মেসেজ পেয়েছি, খুব শিগগিরই যোগাযোগ করব।</p>
+          {%- elsif form.errors -%}
+            <p class="rcbx-msg rcbx-msg--bad" role="alert">
+              {%- for field in form.errors -%}
+                {%- if field == 'form' -%}{{ form.errors.messages[field] }}{%- else -%}{{ form.errors.translated_fields[field] | capitalize }} {{ form.errors.messages[field] }}{%- endif -%}
+                {%- unless forloop.last %}<br>{% endunless -%}
+              {%- endfor -%}
+            </p>
+          {%- endif -%}
+
+          <div class="rcbo__field">
+            <label class="rcbo__label" for="RcbContact-name">আপনার নাম</label>
+            <div class="rcbo__box"><input class="rcbo__input" id="RcbContact-name" type="text" name="contact[name]" autocomplete="name" value="{{ form.name }}" placeholder="নাম লিখুন"></div>
+          </div>
+          <div class="rcbo__field">
+            <label class="rcbo__label" for="RcbContact-phone">মোবাইল নম্বর</label>
+            <div class="rcbo__box"><input class="rcbo__input" id="RcbContact-phone" type="tel" name="contact[phone]" autocomplete="tel" inputmode="tel" value="{{ form.phone }}" placeholder="01XXXXXXXXX"></div>
+          </div>
+          <div class="rcbo__field">
+            <label class="rcbo__label" for="RcbContact-email">ইমেইল <span aria-hidden="true">*</span></label>
+            <div class="rcbo__box"><input class="rcbo__input" id="RcbContact-email" type="email" name="contact[email]" autocomplete="email" spellcheck="false" autocapitalize="off" required aria-required="true" value="{{ form.email }}" placeholder="you@example.com"></div>
+          </div>
+          <div class="rcbo__field">
+            <label class="rcbo__label" for="RcbContact-body">মেসেজ</label>
+            <div class="rcbo__box"><textarea class="rcbo__input rcbo__input--area" id="RcbContact-body" name="contact[body]" rows="5" placeholder="কী জানতে চান লিখুন">{{ form.body }}</textarea></div>
+          </div>
+          <button type="submit" class="rcb-btn rcb-btn--primary rcb-btn--block">মেসেজ পাঠান <span class="rcb-btn__arrow" aria-hidden="true">→</span></button>
+        {%- endform -%}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% stylesheet %}
+  .rcbx-wrap {
+    padding-top: 1.5rem;
+    padding-bottom: 3.5rem;
+  }
+  .rcbx-note p {
+    margin: 0 0 0.75rem;
+  }
+  .rcbx-grid {
+    display: grid;
+    gap: 2rem;
+    margin-top: 0.5rem;
+  }
+  .rcbx-meta {
+    margin: 1rem 0 0;
+  }
+  .rcbx-note {
+    margin-top: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--rcb-muted);
+  }
+  .rcbx-formcard {
+    padding: 1.25rem;
+    border: 1px solid var(--rcb-line);
+    border-radius: var(--rcb-radius);
+    background: var(--rcb-paper);
+    box-shadow: var(--rcb-shadow);
+  }
+  .rcbx-form .rcb-btn {
+    margin-top: 0.5rem;
+  }
+  .rcbx-msg {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+  .rcbx-msg--ok {
+    background: var(--rcb-maroon-soft);
+    color: var(--rcb-maroon-dark);
+  }
+  .rcbx-msg--bad {
+    background: #fdf1f0;
+    color: #b3261e;
+  }
+  @media (min-width: 750px) {
+    .rcbx-wrap {
+      padding-top: 2rem;
+      padding-bottom: 4.5rem;
+    }
+    .rcbx-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+      gap: 3rem;
+      align-items: start;
+    }
+    .rcbx-formcard {
+      padding: 1.75rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "GP contact page",
+  "tag": "section",
+  "class": "rcb-section rcb-section--contact",
+  "settings": [
+    { "type": "text", "id": "subheading", "label": "উপশিরোনাম", "default": "অর্ডার, সাইজ বা ডেলিভারি নিয়ে যেকোনো প্রশ্নে আমরা আছি।" },
+    { "type": "text", "id": "direct_heading", "label": "সরাসরি যোগাযোগের শিরোনাম", "default": "সরাসরি কথা বলুন" },
+    { "type": "text", "id": "form_heading", "label": "ফর্মের শিরোনাম", "default": "মেসেজ পাঠান" }
+  ]
+}
+{% endschema %}

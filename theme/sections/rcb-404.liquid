@@ -1,0 +1,38 @@
+{%- comment -%} Ghorer Poshak 404 page — mirrors the reference: one centred message and a way back. {%- endcomment -%}
+<div class="rcb rcb--404">
+  <div class="rcb-wrap">
+    <section class="rcb404-top">
+      <h1 class="rcb-h2">{{ section.settings.heading | escape }}</h1>
+      <p class="rcb-sub">{{ section.settings.text | escape }}</p>
+      <a class="rcb-btn rcb-btn--primary rcb-btn--spaced" href="{{ section.settings.button_link | default: routes.all_products_collection_url }}">
+        {{ section.settings.button_label | escape }} <span class="rcb-btn__arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+    {%- if section.settings.rail_collection != blank -%}
+      <section class="rcb-section-cross rcb-block rcb404-rail">
+        {%- render 'rcb-collection-rail', rail_collection: section.settings.rail_collection -%}
+      </section>
+    {%- endif -%}
+  </div>
+</div>
+
+{% stylesheet %}
+  .rcb404-rail {
+    padding-bottom: 3rem;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "GP 404",
+  "tag": "section",
+  "class": "rcb-section rcb-section--404",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "পাতাটি খুঁজে পাওয়া যায়নি" },
+    { "type": "textarea", "id": "text", "label": "লেখা", "default": "লিংকটি ভুল হতে পারে, অথবা পণ্যটি আর নেই। নিচ থেকে আমাদের পোশাকগুলো দেখে নিন।" },
+    { "type": "text", "id": "button_label", "label": "বাটনের লেখা", "default": "সব পোশাক দেখুন" },
+    { "type": "url", "id": "button_link", "label": "বাটনের লিংক", "default": "/collections/all" },
+    { "type": "collection", "id": "rail_collection", "label": "নিচে দেখানোর কালেকশন (ঐচ্ছিক)" }
+  ]
+}
+{% endschema %}
