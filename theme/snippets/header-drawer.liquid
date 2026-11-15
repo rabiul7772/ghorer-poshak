@@ -270,14 +270,62 @@
   /* Copy-to-clipboard for [data-rcb-copy] buttons (imo number) anywhere on the page. Bound once. */
   if (!window.rcbCopyBound) {
     window.rcbCopyBound = true;
+    /* imo publishes no link that opens a chat by phone number (unlike wa.me / m.me), so the imo button
+       copies the shop number and, on Android, opens the imo app through the Play Store "launch" intent;
+       the buyer pastes the number into imo search. iOS has no reliable imo URL scheme, so it only copies. */
+    const IMO_PACKAGE = 'com.imo.android.imoim';
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const copyText = function (text) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+      return new Promise(function (resolve, reject) {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(area);
+        area.select();
+        try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); }
+        area.remove();
+      });
+    };
+    const toast = function (text) {
+      let box = document.getElementById('rcb-copy-toast');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'rcb-copy-toast';
+        box.setAttribute('role', 'status');
+        box.style.cssText = 'position:fixed;left:50%;bottom:1.25rem;transform:translateX(-50%);z-index:9999;max-width:min(92vw,26rem);padding:.75rem 1rem;border-radius:12px;background:#163d30;color:#fff;font:500 .9375rem/1.5 "Noto Sans Bengali",system-ui,sans-serif;text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.45);transition:opacity .2s ease;';
+        document.body.appendChild(box);
+      }
+      box.textContent = text;
+      box.style.opacity = '1';
+      clearTimeout(box._t);
+      box._t = setTimeout(function () { box.style.opacity = '0'; }, 4200);
+    };
     document.addEventListener('click', function (event) {
       const trigger = event.target.closest('[data-rcb-copy]');
-      if (!trigger || !navigator.clipboard) return;
-      navigator.clipboard.writeText(trigger.dataset.rcbCopy).then(function () {
+      if (!trigger) return;
+      const isImo = trigger.dataset.channel === 'imo';
+      const number = trigger.dataset.rcbCopyNumber || trigger.dataset.rcbCopy;
+      copyText(trigger.dataset.rcbCopy).then(function () {
         trigger.classList.add('is-copied');
-        setTimeout(function () {
-          trigger.classList.remove('is-copied');
-        }, 2500);
+        setTimeout(function () { trigger.classList.remove('is-copied'); }, 2500);
+        if (isImo && trigger.dataset.rcbCopy !== number) {
+          /* After a failed order, rcb-order.js puts the order details in data-rcb-copy instead of the number. */
+          toast('অর্ডারের তথ্য কপি হয়েছে। ইমোতে ' + number + ' নম্বরে পেস্ট করে পাঠিয়ে দিন।');
+        } else if (isImo) {
+          toast(isAndroid
+            ? 'নম্বর কপি হয়েছে (' + number + ')। ইমো খুলছে — সার্চে পেস্ট করে আমাদের মেসেজ দিন।'
+            : 'নম্বর কপি হয়েছে (' + number + ')। ইমো অ্যাপ খুলে সার্চে পেস্ট করে আমাদের মেসেজ দিন।');
+        }
+      }).catch(function () {
+        if (isImo) toast('ইমোতে আমাদের নম্বর সার্চ করুন: ' + number);
+      }).then(function () {
+        if (isImo && isAndroid) {
+          setTimeout(function () {
+            window.location.href = 'intent://launch?id=' + IMO_PACKAGE + '#Intent;scheme=market;package=com.android.vending;end';
+          }, 900);
+        }
       });
     });
   }
