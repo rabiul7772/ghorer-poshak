@@ -4,6 +4,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
+  "workers_dev": false,
+  "routes": [{ "pattern": "order.ghorerposhak.com", "custom_domain": true }],
   "vars": {
     "SHOPIFY_SHOP": "y1wdm0-c1",
     "ALLOWED_ORIGINS": "https://ghorerposhak.com,https://www.ghorerposhak.com,https://y1wdm0-c1.myshopify.com,http://127.0.0.1:9292",
@@ -13,6 +15,6 @@
     "MAX_ORDERS_PER_PHONE_HOUR": "4"
   },
   // Created with: npx wrangler kv namespace create ORDERS  (paste the id it prints below)
-  "kv_namespaces": [{ "binding": "ORDERS", "id": "REPLACE_WITH_KV_ID" }]
+  "kv_namespaces": [{ "binding": "ORDERS", "id": "00ae1742b3584d84919026afeefaae2c" }]
   // Secrets (never in this file): npx wrangler secret put SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET
 }
