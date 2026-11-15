@@ -286,18 +286,26 @@
         window.location.href = 'imo://home';
       }
     };
+    /* Old-style copy that still works in in-app browsers (Facebook, Shopify app) where the
+       Clipboard API is missing or rejects. Must run inside the tap, so it is tried first and synchronously. */
+    const legacyCopy = function (text) {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px';
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      area.setSelectionRange(0, text.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      area.remove();
+      return ok;
+    };
     const copyText = function (text) {
+      if (legacyCopy(text)) return Promise.resolve();
       if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
-      return new Promise(function (resolve, reject) {
-        const area = document.createElement('textarea');
-        area.value = text;
-        area.setAttribute('readonly', '');
-        area.style.cssText = 'position:fixed;top:-1000px;opacity:0';
-        document.body.appendChild(area);
-        area.select();
-        try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); }
-        area.remove();
-      });
+      return Promise.reject(new Error('copy unavailable'));
     };
     const toast = function (text) {
       let box = document.getElementById('rcb-copy-toast');
@@ -325,11 +333,10 @@
           /* After a failed order, rcb-order.js puts the order details in data-rcb-copy instead of the number. */
           toast('অর্ডারের তথ্য কপি হয়েছে। ইমোতে ' + number + ' নম্বরে পেস্ট করে পাঠিয়ে দিন।');
         } else if (isImo) {
-          toast(isAndroid || isIOS
-            ? 'নম্বর কপি হয়েছে (' + number + ')। ইমো খুলছে — সার্চে পেস্ট করে "ঘরের পোশাক"-কে মেসেজ দিন।'
-            : 'নম্বর কপি হয়েছে (' + number + ')। ফোনের ইমো অ্যাপে সার্চ করে "ঘরের পোশাক"-কে মেসেজ দিন।');
+          toast('নম্বর কপি হয়েছে, ইমোতে আমাদের নম্বর সার্চ করুন: ' + number);
         }
       }).catch(function () {
+        /* Copy truly impossible on this browser: don't claim it was copied, just show the number. */
         if (isImo) toast('ইমোতে আমাদের নম্বর সার্চ করুন: ' + number);
       }).then(function () {
         if (isImo && (isAndroid || isIOS)) setTimeout(openImo, 900);
