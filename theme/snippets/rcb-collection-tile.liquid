@@ -18,7 +18,7 @@
   <a class="rcb-card" href="{{ tile.url }}?filter.v.availability=1" data-rcb-category="{{ tile.handle }}">
     <div class="rcb-card__media">
       {%- if tile_img != blank -%}
-        {{ tile_img | image_url: width: 500 | image_tag: widths: '240,320,400,500,640', sizes: '(min-width: 1024px) 380px, 50vw', alt: label, width: 400, height: 500, loading: 'lazy' }}
+        {{ tile_img | image_url: width: 640, height: 800, crop: 'center' | image_tag: widths: '240,320,400,500,640', sizes: '(min-width: 1024px) 380px, 50vw', alt: label, width: 400, height: 500, loading: 'lazy' }}
       {%- else -%}
         {{ 'collection-apparel-1' | placeholder_svg_tag: 'rcb-card__placeholder' }}
       {%- endif -%}
