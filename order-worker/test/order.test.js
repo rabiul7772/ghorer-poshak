@@ -55,10 +55,24 @@ beforeEach(() => {
       });
       return new Response(JSON.stringify({ data: { nodes } }), { status: 200 });
     }
+    if (body.query.includes('customers(first')) {
+      const known = shopifyState.knownPhones || [];
+      const phone = body.variables.q.replace('phone:', '');
+      return new Response(JSON.stringify({ data: { customers: { nodes: known.includes(phone) ? [{ id: 'gid://shopify/Customer/777' }] : [] } } }), { status: 200 });
+    }
+    if (body.query.includes('customerCreate')) {
+      shopifyState.createdCustomers = (shopifyState.createdCustomers || 0) + 1;
+      return new Response(JSON.stringify({ data: { customerCreate: { customer: { id: 'gid://shopify/Customer/888' }, userErrors: [] } } }), { status: 200 });
+    }
     if (body.query.includes('orderCreate')) {
-      if (shopifyState.failCustomerOnce && body.variables.order.customer) {
+      const customer = body.variables.order.customer;
+      // Real Shopify rejects toUpsert without id/email as a top-level GraphQL error.
+      if (customer && customer.toUpsert && !customer.toUpsert.id && !customer.toUpsert.email) {
+        return new Response(JSON.stringify({ errors: [{ message: 'OrderCreateUpsertCustomerAttributesInput requires at least one of id, email' }] }), { status: 200 });
+      }
+      if (shopifyState.failCustomerOnce && customer) {
         shopifyState.failCustomerOnce = false;
-        return new Response(JSON.stringify({ data: { orderCreate: { order: null, userErrors: [{ field: ['order', 'customer'], message: 'Phone has already been taken' }] } } }), { status: 200 });
+        return new Response(JSON.stringify({ errors: [{ message: 'customer problem' }] }), { status: 200 });
       }
       if (shopifyState.stockError) {
         return new Response(JSON.stringify({ data: { orderCreate: { order: null, userErrors: [{ field: ['order'], message: 'Not enough inventory available' }] } } }), { status: 200 });
@@ -162,6 +176,18 @@ test('unknown origins are rejected; preflight works for allowed ones', async () 
   const pre = await worker.fetch(new Request('https://w.example/order', { method: 'OPTIONS', headers: { Origin: ORIGIN } }), env);
   assert.equal(pre.status, 204);
   assert.equal(pre.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS');
+});
+
+test('new buyers get a customer record; returning buyers are linked by phone', async () => {
+  await worker.fetch(post(good({ attemptId: 'p2_newc' })), env);
+  assert.equal(shopifyState.createdCustomers, 1);
+  assert.deepEqual(orderCall().body.variables.order.customer, { toAssociate: { id: 'gid://shopify/Customer/888' } });
+
+  shopifyState.knownPhones = ['+8801812345678'];
+  calls = [];
+  await worker.fetch(post(good({ attemptId: 'p2_oldc', phone: '01812345678' })), env);
+  assert.equal(shopifyState.createdCustomers, 1, 'no duplicate customer');
+  assert.deepEqual(orderCall().body.variables.order.customer, { toAssociate: { id: 'gid://shopify/Customer/777' } });
 });
 
 test('customer conflict retries without the customer link', async () => {

@@ -117,7 +117,8 @@
     "rcb_facebook": "https://www.facebook.com/profile.php?id=61596223777885",
     "rcb_messenger": "https://m.me/61596223777885",
     "rcb_instagram": "https://www.instagram.com/ghorerposhak/",
-    "rcb_tiktok": ""
+    "rcb_tiktok": "",
+    "rcb_order_endpoint": "https://order.ghorerposhak.com/order"
   },
   "presets": {
     "Horizon": {

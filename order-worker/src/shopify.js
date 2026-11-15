@@ -68,6 +68,44 @@ export async function loadVariants(env, items) {
   return map;
 }
 
+const CUSTOMER_SEARCH = `
+  query FindCustomer($q: String!) {
+    customers(first: 1, query: $q) { nodes { id } }
+  }`;
+
+const CUSTOMER_CREATE = `
+  mutation NewCustomer($input: CustomerInput!) {
+    customerCreate(input: $input) { customer { id } userErrors { field message } }
+  }`;
+
+/**
+ * Finds the customer with this phone number or creates one, so repeat buyers collect their order history.
+ * Buyers here give phone numbers, not emails, and orderCreate can only link a customer by id or email.
+ * Returns the customer GID, or null if anything fails (the order is then placed without a customer link).
+ */
+export async function findOrCreateCustomer(env, { phone, firstName, lastName, address }) {
+  try {
+    const found = await admin(env, CUSTOMER_SEARCH, { q: `phone:${phone}` });
+    const hit = found.customers && found.customers.nodes && found.customers.nodes[0];
+    if (hit) return hit.id;
+    const made = await admin(env, CUSTOMER_CREATE, {
+      input: {
+        firstName,
+        lastName: lastName || undefined,
+        phone,
+        tags: ['website-cod'],
+        addresses: [{ ...address }],
+      },
+    });
+    const result = made.customerCreate;
+    if (result && result.customer) return result.customer.id;
+    console.warn('customerCreate userErrors', JSON.stringify(result && result.userErrors));
+  } catch (error) {
+    console.warn('customer link skipped', String(error));
+  }
+  return null;
+}
+
 const ORDER_MUTATION = `
   mutation CreateOrder($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
     orderCreate(order: $order, options: $options) {

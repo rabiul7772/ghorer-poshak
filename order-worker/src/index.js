@@ -7,7 +7,7 @@
 // The browser only reads `ok`, `field`, `message` and `orderNumber`, so every failure is a 200 with ok:false.
 
 import { checkOrder, splitName } from './validate.js';
-import { loadVariants, createOrder } from './shopify.js';
+import { loadVariants, createOrder, findOrCreateCustomer } from './shopify.js';
 
 const MSG = {
   generic: 'অর্ডারটি এই মুহূর্তে নেওয়া যায়নি। কয়েক সেকেন্ড পরে আবার চেষ্টা করুন, অথবা নিচের নম্বরে মেসেজ দিন।',
@@ -130,15 +130,23 @@ async function handleOrder(body, request, env) {
       { key: 'অর্ডার ফর্ম', value: 'one-page-cod' },
     ],
     sourceIdentifier: input.attemptId || undefined,
-    customer: { toUpsert: { firstName, lastName: lastName || undefined, phone: input.phone, tags: ['website-cod'] } },
   };
   if (input.referrer && /^https?:\/\//.test(input.referrer)) order.referringSite = input.referrer;
   if (input.pageUrl && /^https?:\/\//.test(input.pageUrl)) order.sourceUrl = input.pageUrl;
 
-  let result = await createOrder(env, order);
-  // A phone number already used by another customer record can make the customer upsert fail;
-  // the order matters more than the customer link, so retry once without it.
-  if (result && result.userErrors && result.userErrors.length && result.userErrors.some((e) => /customer|phone/i.test(JSON.stringify(e)))) {
+  const customerId = await findOrCreateCustomer(env, { phone: input.phone, firstName, lastName, address });
+  if (customerId) order.customer = { toAssociate: { id: customerId } };
+
+  let result;
+  try {
+    result = await createOrder(env, order);
+  } catch (error) {
+    if (!order.customer) throw error;
+    console.warn('orderCreate with customer failed, retrying without', String(error));
+    result = null;
+  }
+  // The order matters more than the customer link: if linking caused a problem, retry once without it.
+  if (order.customer && (!result || !result.order)) {
     delete order.customer;
     result = await createOrder(env, order);
   }
