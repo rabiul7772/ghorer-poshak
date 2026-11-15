@@ -270,11 +270,22 @@
   /* Copy-to-clipboard for [data-rcb-copy] buttons (imo number) anywhere on the page. Bound once. */
   if (!window.rcbCopyBound) {
     window.rcbCopyBound = true;
-    /* imo publishes no link that opens a chat by phone number (unlike wa.me / m.me), so the imo button
-       copies the shop number and, on Android, opens the imo app through the Play Store "launch" intent;
-       the buyer pastes the number into imo search. iOS has no reliable imo URL scheme, so it only copies. */
+    /* imo publishes no link that opens a chat by phone number or imo ID (unlike wa.me / m.me). Its own
+       share links deep-link to `imo://home` (seen in s.imoim.net → imo.onelink.me af_dp=imo://home), so the
+       button copies the shop number, then opens the imo app on its home screen; the buyer pastes the number
+       into imo search. Android goes through an intent (Play Store fallback if imo isn't installed). */
     const IMO_PACKAGE = 'com.imo.android.imoim';
+    const IMO_STORE = 'https://play.google.com/store/apps/details?id=' + IMO_PACKAGE;
     const isAndroid = /Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const openImo = function () {
+      if (isAndroid) {
+        window.location.href = 'intent://home#Intent;scheme=imo;package=' + IMO_PACKAGE +
+          ';S.browser_fallback_url=' + encodeURIComponent(IMO_STORE) + ';end';
+      } else if (isIOS) {
+        window.location.href = 'imo://home';
+      }
+    };
     const copyText = function (text) {
       if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
       return new Promise(function (resolve, reject) {
@@ -314,18 +325,14 @@
           /* After a failed order, rcb-order.js puts the order details in data-rcb-copy instead of the number. */
           toast('অর্ডারের তথ্য কপি হয়েছে। ইমোতে ' + number + ' নম্বরে পেস্ট করে পাঠিয়ে দিন।');
         } else if (isImo) {
-          toast(isAndroid
-            ? 'নম্বর কপি হয়েছে (' + number + ')। ইমো খুলছে — সার্চে পেস্ট করে আমাদের মেসেজ দিন।'
-            : 'নম্বর কপি হয়েছে (' + number + ')। ইমো অ্যাপ খুলে সার্চে পেস্ট করে আমাদের মেসেজ দিন।');
+          toast(isAndroid || isIOS
+            ? 'নম্বর কপি হয়েছে (' + number + ')। ইমো খুলছে — সার্চে পেস্ট করে "ঘরের পোশাক"-কে মেসেজ দিন।'
+            : 'নম্বর কপি হয়েছে (' + number + ')। ফোনের ইমো অ্যাপে সার্চ করে "ঘরের পোশাক"-কে মেসেজ দিন।');
         }
       }).catch(function () {
         if (isImo) toast('ইমোতে আমাদের নম্বর সার্চ করুন: ' + number);
       }).then(function () {
-        if (isImo && isAndroid) {
-          setTimeout(function () {
-            window.location.href = 'intent://launch?id=' + IMO_PACKAGE + '#Intent;scheme=market;package=com.android.vending;end';
-          }, 900);
-        }
+        if (isImo && (isAndroid || isIOS)) setTimeout(openImo, 900);
       });
     });
   }
