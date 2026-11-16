@@ -8,7 +8,8 @@ export const COPY = {
   address: 'পূর্ণ ঠিকানা লিখুন — এলাকা, থানা ও জেলা।',
 };
 
-export const LIMITS = { nameMin: 2, nameMax: 100, addressMin: 6, addressMax: 500, itemsMax: 50, quantityMax: 100 };
+// addressMin 1: any non-blank address is accepted (same rule as the storefront form); the shop confirms by phone.
+export const LIMITS = { nameMin: 2, nameMax: 100, addressMin: 1, addressMax: 500, itemsMax: 50, quantityMax: 100 };
 
 const DIGIT_ZEROS = [0x0660, 0x06f0, 0x0966, 0x09e6, 0xff10];
 

@@ -145,8 +145,14 @@ test('field errors map to the form field', async () => {
   assert.equal(bad.field, 'phone');
   const noName = await (await worker.fetch(post(good({ name: ' ' })), env)).json();
   assert.equal(noName.field, 'name');
-  const shortAddress = await (await worker.fetch(post(good({ address: 'ঢাকা' })), env)).json();
-  assert.equal(shortAddress.field, 'address');
+  const blankAddress = await (await worker.fetch(post(good({ address: '   ' })), env)).json();
+  assert.equal(blankAddress.field, 'address');
+});
+
+test('a one-character address is accepted', async () => {
+  const data = await (await worker.fetch(post(good({ address: 'ক', attemptId: 'p2_addr1' })), env)).json();
+  assert.equal(data.ok, true);
+  assert.equal(orderCall().body.variables.order.shippingAddress.address1, 'ক');
 });
 
 test('Bangla digits in the phone are accepted', async () => {
