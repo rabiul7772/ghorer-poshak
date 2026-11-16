@@ -1,6 +1,10 @@
 {%- doc -%}
-  Default size chart table (inches) shown in the size-chart dialog when neither the product metafield
-  custom.size_chart nor the theme's per-category chart image is set.
+  Default size chart table (inches, garment measurements) shown in the size-chart dialog when neither the
+  product metafield custom.size_chart nor the theme's per-category chart image is set.
+
+  Values are regular-fit medians of published Bangladeshi charts (Nov 2026): Aarong/Taaga Man, Blucheez,
+  Easy, AAZ, Fabrilife, Follow Fashion, Axaro, Poripati, Poshak's BD. Every circumference column
+  (chest, thigh, leg opening) is the full measurement around, not the flat/half measurement.
 
   @param {string} type - Lower-cased product type (pant / shirt / t-shirt)
 
@@ -9,14 +13,20 @@
 {%- enddoc -%}
 {%- liquid
   if type contains 'pant' or type contains 'প্যান্ট'
+    # size | waist | length | thigh (around) | leg opening (around)
     assign head = 'সাইজ,কোমর,লম্বা,থাই,মুহুরি'
-    assign rows = '28|28|39|22|7.5,30|30|39.5|23|7.5,32|32|40|24|8,34|34|40.5|25|8,36|36|41|26|8.5,38|38|41.5|27|8.5'
+    assign rows = '28|28|39|22.5|13.5,30|30|39.5|23.5|14,32|32|40|24.5|14.5,34|34|40.5|25.5|15,36|36|41|26.5|15.5,38|38|41.5|27.5|16'
+    assign tip = 'কোমরের মাপই সাইজ — যেমন কোমর ৩২ ইঞ্চি হলে ৩২ সাইজ। থাই ও মুহুরি চারপাশ ঘুরিয়ে মাপা।'
   elsif type contains 't-shirt' or type contains 'tshirt' or type contains 'টি-শার্ট'
-    assign head = 'সাইজ,বুক,লম্বা,হাতা'
-    assign rows = 'M|38|27|7.5,L|40|28|8,XL|42|29|8.5,XXL|44|30|9'
-  else
+    # size | chest (around) | length | sleeve | shoulder
     assign head = 'সাইজ,বুক,লম্বা,হাতা,কাঁধ'
-    assign rows = 'M|40|28|24|17.5,L|42|29|24.5|18,XL|44|30|25|18.5,XXL|46|31|25.5|19'
+    assign rows = 'M|39|27|7.5|17.5,L|41|28|8|18,XL|43|29|8.5|18.5,XXL|45|30|9|19'
+    assign tip = 'বুক = টি-শার্টের বুকের চারপাশের মাপ। আপনার বুকের মাপের সাথে ২–৩ ইঞ্চি যোগ করে সাইজ বাছুন।'
+  else
+    # size | collar | chest (around) | length | sleeve (full) | shoulder
+    assign head = 'সাইজ,কলার,বুক,লম্বা,হাতা,কাঁধ'
+    assign rows = 'M|15.5|42|29|24.5|18,L|16|44|29.5|25|18.5,XL|16.5|46|30.5|25.5|19,XXL|17|48|31|26|19.5'
+    assign tip = 'বুক = শার্টের বুকের চারপাশের মাপ। আপনার বুকের মাপের সাথে ৩–৪ ইঞ্চি যোগ করে সাইজ বাছুন; কলার সাইজ জানলে সেটা মিলিয়ে নিন।'
   endif
   assign head_cells = head | split: ','
   assign row_list = rows | split: ','
@@ -40,11 +50,13 @@
     </tbody>
   </table>
 </div>
+<p class="rcb-size-table__tip">{{ tip }}</p>
 <style>
   .rcb-size-table { overflow-x: auto; border: 1px solid var(--rcb-line); border-radius: 10px; }
   .rcb-size-table table { width: 100%; border-collapse: collapse; font: 500 .9375rem/1.5 var(--rcb-font); text-align: center; }
-  .rcb-size-table thead th { background: var(--rcb-maroon); color: #fff; font-weight: 600; padding: .625rem .5rem; }
-  .rcb-size-table tbody th { background: var(--rcb-gold-soft); color: var(--rcb-ink); font-weight: 700; padding: .625rem .5rem; }
-  .rcb-size-table td { padding: .625rem .5rem; border-top: 1px solid var(--rcb-line); }
+  .rcb-size-table thead th { background: var(--rcb-maroon); color: #fff; font-weight: 600; padding: .625rem .375rem; white-space: nowrap; }
+  .rcb-size-table tbody th { background: var(--rcb-gold-soft); color: var(--rcb-ink); font-weight: 700; padding: .625rem .375rem; }
+  .rcb-size-table td { padding: .625rem .375rem; border-top: 1px solid var(--rcb-line); white-space: nowrap; }
   .rcb-size-table tbody tr:nth-child(even) td { background: var(--rcb-tint); }
+  .rcb-size-table__tip { margin: .75rem 0 0; color: var(--rcb-ink); font: 500 .875rem/1.6 var(--rcb-font); }
 </style>
