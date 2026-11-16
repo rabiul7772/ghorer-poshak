@@ -3,6 +3,9 @@
   customer review slider, FAQ and contact band. Rebuilt from the Ready Cart BD reference layout.
 {%- endcomment -%}
 {%- liquid
+  # Hero mosaic: the big tile comes from one collection (sarees by default), the two
+  # small tiles from another (t-shirts by default). Until the small collection has
+  # products with photos, the small tiles are filled from the big collection.
   assign hero_collection = section.settings.hero_collection
   if hero_collection == blank or hero_collection.products_count == 0
     assign hero_collection = collections['saree']
@@ -10,32 +13,59 @@
   if hero_collection == blank or hero_collection.products_count == 0
     assign hero_collection = collections.all
   endif
+  assign hero_small_collection = section.settings.hero_small_collection
 
   assign hero_products = ''
+  assign hero_seen = ','
   assign hero_count = 0
   for p in hero_collection.products limit: 24
-    if p.available and p.featured_media and hero_count < 3
-      assign hero_count = hero_count | plus: 1
-      if hero_products == ''
-        assign hero_products = p.handle
-      else
-        assign hero_products = hero_products | append: ',' | append: p.handle
-      endif
+    if p.available and p.featured_media and hero_count < 1
+      assign hero_count = 1
+      assign hero_products = p.handle
+      assign hero_seen = hero_seen | append: p.handle | append: ','
     endif
   endfor
   if hero_count == 0
-    for p in hero_collection.products limit: 3
-      if p.featured_media
-        assign hero_count = hero_count | plus: 1
-        if hero_products == ''
-          assign hero_products = p.handle
-        else
+    for p in hero_collection.products limit: 24
+      if p.featured_media and hero_count < 1
+        assign hero_count = 1
+        assign hero_products = p.handle
+        assign hero_seen = hero_seen | append: p.handle | append: ','
+      endif
+    endfor
+  endif
+  if hero_count == 1 and hero_small_collection != blank
+    for p in hero_small_collection.products limit: 24
+      assign needle = ',' | append: p.handle | append: ','
+      if p.featured_media and hero_count < 3
+        unless hero_seen contains needle
+          assign hero_count = hero_count | plus: 1
           assign hero_products = hero_products | append: ',' | append: p.handle
-        endif
+          assign hero_seen = hero_seen | append: p.handle | append: ','
+        endunless
+      endif
+    endfor
+  endif
+  if hero_count > 0 and hero_count < 3
+    for p in hero_collection.products limit: 24
+      assign needle = ',' | append: p.handle | append: ','
+      if p.featured_media and hero_count < 3
+        unless hero_seen contains needle
+          assign hero_count = hero_count | plus: 1
+          assign hero_products = hero_products | append: ',' | append: p.handle
+          assign hero_seen = hero_seen | append: p.handle | append: ','
+        endunless
       endif
     endfor
   endif
   assign hero_handles = hero_products | split: ','
+
+  # Hero button: goes to the picked collection once it has products, else to the fallback link.
+  assign hero_button_url = section.settings.button_link | default: routes.all_products_collection_url
+  assign hero_button_collection = section.settings.button_collection
+  if hero_button_collection != blank and hero_button_collection.products_count > 0
+    assign hero_button_url = hero_button_collection.url
+  endif
 
   assign dhaka = settings.rcb_delivery_dhaka | default: 80
   assign outside = settings.rcb_delivery_outside | default: 120
@@ -98,7 +128,7 @@
           <p class="rcbh-hero__b">{{ section.settings.body }}</p>
         {%- endif -%}
         {%- if section.settings.button_label != blank -%}
-          <a href="{{ section.settings.button_link | default: routes.all_products_collection_url }}" class="rcb-btn rcb-btn--primary rcb-btn--block">
+          <a href="{{ hero_button_url }}" class="rcb-btn rcb-btn--primary rcb-btn--block">
             {{- section.settings.button_label -}}
             <span class="rcb-btn__arrow" aria-hidden="true">→</span>
           </a>
@@ -305,12 +335,14 @@
   "class": "rcb-home-section",
   "settings": [
     { "type": "header", "content": "হিরো" },
-    { "type": "collection", "id": "hero_collection", "label": "হিরোতে কোন কালেকশনের প্রোডাক্ট দেখাবে", "info": "খালি থাকলে 'saree' কালেকশন, তারপর সব প্রোডাক্ট থেকে প্রথম ৩টা" },
+    { "type": "collection", "id": "hero_collection", "label": "হিরোর বড় ছবি কোন কালেকশন থেকে", "info": "খালি থাকলে 'saree' কালেকশন, তারপর সব প্রোডাক্ট" },
+    { "type": "collection", "id": "hero_small_collection", "label": "হিরোর ছোট ২টা ছবি কোন কালেকশন থেকে", "info": "এই কালেকশনে প্রোডাক্ট না থাকলে ছোট ছবিগুলোও বড় ছবির কালেকশন থেকে আসবে" },
     { "type": "text", "id": "eyebrow", "label": "ছোট লেখা (উপরে)", "default": "ঘরের মানুষের জন্য ঘরের পোশাক" },
     { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "সাধ্যের মধ্যে স্বপ্নের সাজ" },
     { "type": "textarea", "id": "body", "label": "বিবরণ", "default": "সারা বাংলাদেশে ক্যাশ অন ডেলিভারি। হাতে পেয়ে চেক করুন, পছন্দ হলে তবেই পেমেন্ট।" },
     { "type": "text", "id": "button_label", "label": "বাটনের লেখা", "default": "সব কালেকশন দেখুন" },
-    { "type": "url", "id": "button_link", "label": "বাটনের লিংক", "default": "/collections/all" },
+    { "type": "collection", "id": "button_collection", "label": "বাটন কোন কালেকশনে নিয়ে যাবে", "info": "এই কালেকশনে প্রোডাক্ট না থাকলে নিচের লিংকে যাবে" },
+    { "type": "url", "id": "button_link", "label": "বাটনের বিকল্প লিংক", "default": "/collections/all" },
     { "type": "header", "content": "ক্যাশ অন ডেলিভারি" },
     { "type": "text", "id": "cod_heading", "label": "শিরোনাম", "default": "ক্যাশ অন ডেলিভারি" },
     { "type": "textarea", "id": "cod_body", "label": "বিবরণ", "default": "প্রোডাক্ট হাতে পেয়ে ডেলিভারিম্যানের সামনেই চেক করে দেখবেন। পছন্দ হলে তবেই পেমেন্ট করবেন। পছন্দ না হলে শুধুমাত্র ডেলিভারি চার্জ দিয়ে সঙ্গে সঙ্গে রিটার্ন করে দিবেন।" },
