@@ -4,8 +4,10 @@
 {%- endcomment -%}
 {%- liquid
   # Hero mosaic: the big tile comes from one collection (sarees by default), the two
-  # small tiles from another (t-shirts by default). Until the small collection has
-  # products with photos, the small tiles are filled from the big collection.
+  # small tiles from another (t-shirts by default). Each tile is "handle|variant id"
+  # (variant id empty = the product itself). When the small collection has fewer
+  # products than tiles, its other colours fill the gap (a variant with its own photo);
+  # only after that are the small tiles filled from the big collection.
   assign hero_collection = section.settings.hero_collection
   if hero_collection == blank or hero_collection.products_count == 0
     assign hero_collection = collections['saree']
@@ -21,7 +23,7 @@
   for p in hero_collection.products limit: 24
     if p.available and p.featured_media and hero_count < 1
       assign hero_count = 1
-      assign hero_products = p.handle
+      assign hero_products = p.handle | append: '|'
       assign hero_seen = hero_seen | append: p.handle | append: ','
     endif
   endfor
@@ -29,7 +31,7 @@
     for p in hero_collection.products limit: 24
       if p.featured_media and hero_count < 1
         assign hero_count = 1
-        assign hero_products = p.handle
+        assign hero_products = p.handle | append: '|'
         assign hero_seen = hero_seen | append: p.handle | append: ','
       endif
     endfor
@@ -40,11 +42,27 @@
       if p.featured_media and hero_count < 3
         unless hero_seen contains needle
           assign hero_count = hero_count | plus: 1
-          assign hero_products = hero_products | append: ',' | append: p.handle
+          assign hero_products = hero_products | append: ',' | append: p.handle | append: '|'
           assign hero_seen = hero_seen | append: p.handle | append: ','
         endunless
       endif
     endfor
+    if hero_count < 3
+      assign hero_media_seen = ','
+      for p in hero_small_collection.products limit: 24
+        assign hero_media_seen = hero_media_seen | append: p.featured_media.id | append: ','
+        for v in p.variants
+          if hero_count < 3 and v.available and v.featured_media
+            assign needle = ',' | append: v.featured_media.id | append: ','
+            unless hero_media_seen contains needle
+              assign hero_count = hero_count | plus: 1
+              assign hero_products = hero_products | append: ',' | append: p.handle | append: '|' | append: v.id
+              assign hero_media_seen = hero_media_seen | append: v.featured_media.id | append: ','
+            endunless
+          endif
+        endfor
+      endfor
+    endif
   endif
   if hero_count > 0 and hero_count < 3
     for p in hero_collection.products limit: 24
@@ -52,7 +70,7 @@
       if p.featured_media and hero_count < 3
         unless hero_seen contains needle
           assign hero_count = hero_count | plus: 1
-          assign hero_products = hero_products | append: ',' | append: p.handle
+          assign hero_products = hero_products | append: ',' | append: p.handle | append: '|'
           assign hero_seen = hero_seen | append: p.handle | append: ','
         endunless
       endif
@@ -90,15 +108,29 @@
   <section class="rcbh-hero rcbh-hero--plain rcbh-hero--product">
     <div class="rcbh-hero__mosaic">
       {%- if hero_count > 0 -%}
-        {%- for handle in hero_handles -%}
-          {%- assign hp = all_products[handle] -%}
-          <a class="rcbh-hero__product" href="{{ hp.url }}">
+        {%- for tile in hero_handles -%}
+          {%- liquid
+            assign tile_bits = tile | split: '|'
+            assign hp = all_products[tile_bits.first]
+            assign tile_media = hp.featured_media
+            assign tile_url = hp.url
+            if tile_bits.size > 1
+              for v in hp.variants
+                assign vid = v.id | append: ''
+                if vid == tile_bits.last
+                  assign tile_media = v.featured_media
+                  assign tile_url = v.url
+                endif
+              endfor
+            endif
+          -%}
+          <a class="rcbh-hero__product" href="{{ tile_url }}">
             <picture>
               {%- if forloop.first -%}
-                <source media="(min-width: 1024px)" srcset="{{ hp.featured_media | image_url: width: 500 }} 500w, {{ hp.featured_media | image_url: width: 800 }} 800w" sizes="420px">
+                <source media="(min-width: 1024px)" srcset="{{ tile_media | image_url: width: 500 }} 500w, {{ tile_media | image_url: width: 800 }} 800w" sizes="420px">
                 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="400" height="500" alt="{{ hp.title | escape }}" fetchpriority="high">
               {%- else -%}
-                <source media="(min-width: 1024px)" srcset="{{ hp.featured_media | image_url: width: 300 }} 300w, {{ hp.featured_media | image_url: width: 600 }} 600w" sizes="260px">
+                <source media="(min-width: 1024px)" srcset="{{ tile_media | image_url: width: 300 }} 300w, {{ tile_media | image_url: width: 600 }} 600w" sizes="260px">
                 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="400" height="500" alt="{{ hp.title | escape }}">
               {%- endif -%}
             </picture>
