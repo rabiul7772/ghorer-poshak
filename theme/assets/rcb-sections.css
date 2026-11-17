@@ -84,6 +84,8 @@
 .rcbk-tier__step.is-earned .rcbk-tier__off{color:var(--rcb-green)}
 .rcbk-tier.is-unlocked{animation:rcbk-tier-shake .6s ease-in-out}
 .rcbk-sum__tier>:last-child{color:var(--rcb-green)}
+.rcbk-combo{margin:.125rem 0 .375rem;padding:.5rem .75rem;border:1px dashed var(--rcb-gold);border-radius:8px;background:var(--rcb-gold-soft);font-size:.875rem;line-height:1.5;color:var(--rcb-ink)}
+.rcbk-combo b{font-weight:700;color:var(--rcb-maroon)}
 @media(prefers-reduced-motion:reduce){.rcbk-tier__fill{transition:none}.rcbk-tier.is-unlocked{animation:none}}
 .rcbk-sum__amt{flex:none;text-align:right}
 .rcbk-sum .rcbk-sum__amt strong{display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--rcb-maroon);letter-spacing:-.015em;white-space:nowrap}

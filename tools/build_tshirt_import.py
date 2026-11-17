@@ -1,9 +1,12 @@
-"""Turn data/tshirts.json into Shopify productSet inputs (data/import/tshirt-NN.json), one product per file.
+"""Turn data/tshirts.json into Shopify productSet inputs (data/import/tshirt-<handle>.json).
 
-Each product has Color x Size variants. Unlike sarees, stock is counted: every variant is tracked,
-gets its quantity at the shop location, and cannot be ordered once it reaches zero.
-Photos are grouped by colour (model front, model back, flat front, flat back); every variant of a
-colour points at that colour's first photo, so picking a colour on the product page jumps to it.
+Every colour of a style is its own product ("<style title> — <colour>") with Size variants and that
+colour's photos, so each colour gets its own card in the collection. Unlike sarees, stock is counted:
+every variant is tracked, gets its quantity at the shop location, and cannot be ordered at zero.
+
+Combo price: all colours of a style share custom.combo_group; taking 2 or more pieces from the group
+makes each piece cost custom.combo_price. The cart (theme) and the order Worker both read these two
+metafields, so the offer is changed in Shopify admin, not in code.
 
 Usage: build_tshirt_import.py <tshirts.json> <out_dir>
 """
@@ -17,53 +20,54 @@ SKU_PREFIX = 'GP-WFS'
 
 src, out_dir = sys.argv[1], sys.argv[2]
 os.makedirs(out_dir, exist_ok=True)
-products = json.load(open(src, encoding='utf-8'))
+styles = json.load(open(src, encoding='utf-8'))
 
 
-def to_input(p):
-    files, variants = [], []
-    for c in p['colors']:
-        colour_files = [{'originalSource': u, 'alt': a, 'contentType': 'IMAGE'}
-                        for u, a in zip(c['images'], c['image_alts'])]
-        files += colour_files
-        for size in p['sizes']:
-            variants.append({
-                'optionValues': [{'optionName': 'Color', 'name': c['name']}, {'optionName': 'Size', 'name': size}],
-                'sku': f"{p.get('sku_prefix', SKU_PREFIX)}-{c['sku_code']}-{size}",
-                'price': p['price'],
-                'compareAtPrice': p['compare'],
-                'inventoryItem': {'tracked': True},
-                'inventoryPolicy': 'DENY',
-                'inventoryQuantities': [{'locationId': LOCATION, 'name': 'available', 'quantity': c['stock'][size]}],
-                'file': colour_files[0],
-            })
+def to_input(p, c):
+    if c.get('media_ids'):  # photos already in the store's Files
+        files = [{'id': i} for i in c['media_ids']]
+    else:
+        files = [{'originalSource': u, 'alt': a, 'contentType': 'IMAGE'} for u, a in zip(c['images'], c['image_alts'])]
+    variants = [{
+        'optionValues': [{'optionName': 'Size', 'name': size}],
+        'sku': f"{p.get('sku_prefix', SKU_PREFIX)}-{c['sku_code']}-{size}",
+        'price': p['price'],
+        'compareAtPrice': p['compare'],
+        'inventoryItem': {'tracked': True},
+        'inventoryPolicy': 'DENY',
+        'inventoryQuantities': [{'locationId': LOCATION, 'name': 'available', 'quantity': c['stock'][size]}],
+    } for size in p['sizes']]
     features = ''.join(f'<li>{html.escape(f)}</li>' for f in p['features'])
+    metafields = [
+        {'namespace': 'custom', 'key': 'summary', 'type': 'multi_line_text_field', 'value': p['summary']},
+        {'namespace': 'custom', 'key': 'reasons', 'type': 'list.single_line_text_field', 'value': json.dumps(p['reasons'], ensure_ascii=False)},
+        {'namespace': 'custom', 'key': 'specs', 'type': 'list.single_line_text_field', 'value': json.dumps(p['specs'], ensure_ascii=False)},
+        {'namespace': 'custom', 'key': 'faq', 'type': 'multi_line_text_field', 'value': '\n'.join(p['faq'])},
+    ]
+    if p.get('combo'):
+        metafields += [
+            {'namespace': 'custom', 'key': 'combo_group', 'type': 'single_line_text_field', 'value': p['combo']['group']},
+            {'namespace': 'custom', 'key': 'combo_price', 'type': 'number_integer', 'value': str(p['combo']['price'])},
+        ]
     return {
-        'title': p['title'],
-        'handle': p['handle'],
+        'title': c['title'],
+        'handle': c['handle'],
         'productType': p['product_type'],
         'vendor': 'Ghorer Poshak',
         'status': 'ACTIVE',
         'tags': p['tags'],
         'descriptionHtml': f"<p>{html.escape(p['summary'])}</p><ul>{features}</ul>",
-        'seo': {'title': f"{p['title']} | {p['title_en']}"},
+        'seo': {'title': f"{c['title']} | {p['title_en']}"},
         'files': files,
-        'productOptions': [
-            {'name': 'Color', 'values': [{'name': c['name']} for c in p['colors']]},
-            {'name': 'Size', 'values': [{'name': s} for s in p['sizes']]},
-        ],
+        'productOptions': [{'name': 'Size', 'values': [{'name': s} for s in p['sizes']]}],
         'variants': variants,
-        'metafields': [
-            {'namespace': 'custom', 'key': 'summary', 'type': 'multi_line_text_field', 'value': p['summary']},
-            {'namespace': 'custom', 'key': 'reasons', 'type': 'list.single_line_text_field', 'value': json.dumps(p['reasons'], ensure_ascii=False)},
-            {'namespace': 'custom', 'key': 'specs', 'type': 'list.single_line_text_field', 'value': json.dumps(p['specs'], ensure_ascii=False)},
-            {'namespace': 'custom', 'key': 'faq', 'type': 'multi_line_text_field', 'value': '\n'.join(p['faq'])},
-        ],
+        'metafields': metafields,
     }
 
 
-for i, p in enumerate(products, 1):
-    path = os.path.join(out_dir, f'tshirt-{i:02d}.json')
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'p0': to_input(p)}, f, ensure_ascii=False, separators=(',', ':'))
-    print(path, len(p['colors']) * len(p['sizes']), 'variants', os.path.getsize(path), 'bytes')
+for p in styles:
+    for c in p['colors']:
+        path = os.path.join(out_dir, f"tshirt-{c['handle']}.json")
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'p0': to_input(p, c)}, f, ensure_ascii=False, separators=(',', ':'))
+        print(path, len(p['sizes']), 'variants', os.path.getsize(path), 'bytes')

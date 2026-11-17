@@ -4,10 +4,13 @@
 //   POST { attemptId, items:[{id, quantity}], name, phone, address, deliveryZone:'inside'|'outside', website, ... }
 //   →    { ok: true, orderNumber: '#1001' }
 //   or   { ok: false, field?: 'name'|'phone'|'address', message: '<Bangla text shown to the buyer>' }
+//   POST /quote { items:[{id, quantity}] } → { ok: true, subtotal, comboSaved }
+//     What /order would charge for these items (no order is made). Used to check prices and combos.
 // The browser only reads `ok`, `field`, `message` and `orderNumber`, so every failure is a 200 with ok:false.
 
-import { checkOrder, splitName } from './validate.js';
+import { checkOrder, checkItems, splitName } from './validate.js';
 import { loadVariants, createOrder, findOrCreateCustomer } from './shopify.js';
+import { comboUnitPrices } from './combo.js';
 
 const MSG = {
   generic: 'অর্ডারটি এই মুহূর্তে নেওয়া যায়নি। কয়েক সেকেন্ড পরে আবার চেষ্টা করুন, অথবা নিচের নম্বরে মেসেজ দিন।',
@@ -26,7 +29,8 @@ export default {
 
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true }, cors);
-    if (request.method !== 'POST' || url.pathname !== '/order') return json({ ok: false, message: 'not found' }, cors, 404);
+    const quote = url.pathname === '/quote';
+    if (request.method !== 'POST' || (url.pathname !== '/order' && !quote)) return json({ ok: false, message: 'not found' }, cors, 404);
     if (!cors) return json({ ok: false, message: 'origin not allowed' }, null, 403);
 
     let body;
@@ -39,7 +43,7 @@ export default {
     }
 
     try {
-      return json(await handleOrder(body, request, env, ctx), cors);
+      return json(await (quote ? handleQuote(body, request, env) : handleOrder(body, request, env, ctx)), cors);
     } catch (error) {
       console.error('order failed', error && error.stack ? error.stack : String(error));
       return json({ ok: false, message: MSG.generic }, cors);
@@ -77,27 +81,9 @@ async function handleOrder(body, request, env) {
     if (limited) return { ok: false, message: MSG.tooMany };
   }
 
-  // Prices, titles and stock come from Shopify.
-  const variants = await loadVariants(env, input.items);
-  const lineItems = [];
-  let subtotal = 0;
-  for (const item of input.items) {
-    const v = variants.get(item.id);
-    if (!v || !v.product || v.product.status !== 'ACTIVE') return { ok: false, message: MSG.gone };
-    if (!v.availableForSale) return { ok: false, message: MSG.stock(v.product.title) };
-    const price = Number(v.price);
-    subtotal += price * item.quantity;
-    lineItems.push({
-      variantId: v.id,
-      quantity: item.quantity,
-      title: v.product.title,
-      variantTitle: v.title === 'Default Title' ? null : v.title,
-      sku: v.sku || null,
-      vendor: v.product.vendor || null,
-      requiresShipping: true,
-      priceSet: { shopMoney: { amount: v.price, currencyCode: 'BDT' } },
-    });
-  }
+  const lines = await priceItems(env, input.items);
+  if (!lines.ok) return { ok: false, message: lines.message };
+  const { lineItems, subtotal, comboSaved } = lines;
 
   const inside = input.zone === 'inside';
   const deliveryCharge = Number(inside ? env.DELIVERY_INSIDE || 80 : env.DELIVERY_OUTSIDE || 120);
@@ -123,7 +109,13 @@ async function handleOrder(body, request, env) {
     shippingLines: [
       { title: deliveryTitle, code: inside ? 'dhaka-inside' : 'dhaka-outside', source: 'ghorer-poshak', priceSet: { shopMoney: { amount: String(deliveryCharge), currencyCode: 'BDT' } } },
     ],
-    note: [`ক্যাশ অন ডেলিভারি — ${deliveryTitle}`, `নাম: ${input.name}`, `ফোন: ${input.phoneLocal}`, `ঠিকানা: ${input.address}`].join('\n'),
+    note: [
+      `ক্যাশ অন ডেলিভারি — ${deliveryTitle}`,
+      `নাম: ${input.name}`,
+      `ফোন: ${input.phoneLocal}`,
+      `ঠিকানা: ${input.address}`,
+      ...(comboSaved > 0 ? [`কম্বো দাম ধরা হয়েছে — ছাড় ${comboSaved} টাকা`] : []),
+    ].join('\n'),
     tags: ['website-cod', inside ? 'dhaka-inside' : 'dhaka-outside'],
     customAttributes: [
       { key: 'ডেলিভারি এলাকা', value: deliveryTitle },
@@ -131,6 +123,10 @@ async function handleOrder(body, request, env) {
     ],
     sourceIdentifier: input.attemptId || undefined,
   };
+  if (comboSaved > 0) {
+    order.tags.push('combo');
+    order.customAttributes.push({ key: 'কম্বো ছাড়', value: `${comboSaved} টাকা` });
+  }
   if (input.referrer && /^https?:\/\//.test(input.referrer)) order.referringSite = input.referrer;
   if (input.pageUrl && /^https?:\/\//.test(input.pageUrl)) order.sourceUrl = input.pageUrl;
 
@@ -162,6 +158,63 @@ async function handleOrder(body, request, env) {
   const response = { ok: true, orderNumber: result.order.name, total: subtotal + deliveryCharge };
   if (kv && attemptKey) await kv.put(attemptKey, JSON.stringify(response), { expirationTtl: 2 * 24 * 60 * 60 });
   return response;
+}
+
+/**
+ * Prices the items the way the order will be charged. Prices, titles and stock come from Shopify.
+ * Returns { ok: true, lineItems, subtotal, comboSaved } or { ok: false, message }.
+ */
+async function priceItems(env, items) {
+  const variants = await loadVariants(env, items);
+  const lineItems = [];
+  const priced = [];
+  for (const item of items) {
+    const v = variants.get(item.id);
+    if (!v || !v.product || v.product.status !== 'ACTIVE') return { ok: false, message: MSG.gone };
+    if (!v.availableForSale) return { ok: false, message: MSG.stock(v.product.title) };
+    priced.push({
+      quantity: item.quantity,
+      price: Number(v.price),
+      group: String((v.product.comboGroup && v.product.comboGroup.value) || '').trim(),
+      comboPrice: Number(v.product.comboPrice && v.product.comboPrice.value) || 0,
+    });
+    lineItems.push({
+      variantId: v.id,
+      quantity: item.quantity,
+      title: v.product.title,
+      variantTitle: v.title === 'Default Title' ? null : v.title,
+      sku: v.sku || null,
+      vendor: v.product.vendor || null,
+      requiresShipping: true,
+      priceSet: { shopMoney: { amount: v.price, currencyCode: 'BDT' } },
+    });
+  }
+
+  // Combo price: 2+ pieces from one combo group are charged the group's combo price each.
+  let subtotal = 0;
+  let comboSaved = 0;
+  comboUnitPrices(priced).forEach((unit, i) => {
+    const line = priced[i];
+    subtotal += unit * line.quantity;
+    if (unit === line.price) return;
+    comboSaved += (line.price - unit) * line.quantity;
+    lineItems[i].priceSet = { shopMoney: { amount: String(unit), currencyCode: 'BDT' } };
+  });
+  return { ok: true, lineItems, subtotal, comboSaved };
+}
+
+/** POST /quote: the same sum /order would charge, without making an order. */
+async function handleQuote(body, request, env) {
+  const checked = checkItems(body && body.items);
+  if (!checked.ok) return { ok: false, message: MSG.empty };
+  if (env.ORDERS) {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const hour = Math.floor(Date.now() / 3600000);
+    if (await bump(env.ORDERS, `rl:quote:${ip}:${hour}`, Number(env.MAX_QUOTES_PER_IP_HOUR || 120))) return { ok: false, message: MSG.tooMany };
+  }
+  const lines = await priceItems(env, checked.items);
+  if (!lines.ok) return { ok: false, message: lines.message };
+  return { ok: true, subtotal: lines.subtotal, comboSaved: lines.comboSaved };
 }
 
 /** Increments a counter; returns true when the limit is exceeded. */

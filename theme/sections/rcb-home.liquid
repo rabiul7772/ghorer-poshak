@@ -4,7 +4,8 @@
 {%- endcomment -%}
 {%- liquid
   # Hero mosaic: the big tile comes from one collection (sarees by default), the two
-  # small tiles from another (t-shirts by default). Each tile is "handle|variant id"
+  # small tiles from the picked products (hero_small_products), then from another
+  # collection (t-shirts by default). Each tile is "handle|variant id"
   # (variant id empty = the product itself). When the small collection has fewer
   # products than tiles, its other colours fill the gap (a variant with its own photo);
   # only after that are the small tiles filled from the big collection.
@@ -36,7 +37,19 @@
       endif
     endfor
   endif
-  if hero_count == 1 and hero_small_collection != blank
+  if hero_count == 1
+    for p in section.settings.hero_small_products
+      assign needle = ',' | append: p.handle | append: ','
+      if p.available and p.featured_media and hero_count < 3
+        unless hero_seen contains needle
+          assign hero_count = hero_count | plus: 1
+          assign hero_products = hero_products | append: ',' | append: p.handle | append: '|'
+          assign hero_seen = hero_seen | append: p.handle | append: ','
+        endunless
+      endif
+    endfor
+  endif
+  if hero_count > 0 and hero_count < 3 and hero_small_collection != blank
     for p in hero_small_collection.products limit: 24
       assign needle = ',' | append: p.handle | append: ','
       if p.featured_media and hero_count < 3
@@ -368,6 +381,7 @@
   "settings": [
     { "type": "header", "content": "হিরো" },
     { "type": "collection", "id": "hero_collection", "label": "হিরোর বড় ছবি কোন কালেকশন থেকে", "info": "খালি থাকলে 'saree' কালেকশন, তারপর সব প্রোডাক্ট" },
+    { "type": "product_list", "id": "hero_small_products", "label": "হিরোর ছোট ২টা ছবির প্রোডাক্ট", "limit": 2, "info": "এখানে প্রোডাক্ট বাছলে সেগুলোই দেখাবে। খালি থাকলে বা স্টক শেষ হলে নিচের কালেকশন থেকে আসবে" },
     { "type": "collection", "id": "hero_small_collection", "label": "হিরোর ছোট ২টা ছবি কোন কালেকশন থেকে", "info": "এই কালেকশনে প্রোডাক্ট না থাকলে ছোট ছবিগুলোও বড় ছবির কালেকশন থেকে আসবে" },
     { "type": "text", "id": "eyebrow", "label": "ছোট লেখা (উপরে)", "default": "ঘরের মানুষের জন্য ঘরের পোশাক" },
     { "type": "text", "id": "heading", "label": "শিরোনাম", "default": "সাধ্যের মধ্যে স্বপ্নের সাজ" },

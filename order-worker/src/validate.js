@@ -55,6 +55,20 @@ export function splitName(full) {
   return { firstName: full.slice(0, at), lastName: full.slice(at + 1).trim() };
 }
 
+/** Validates the items list and merges repeated variants. Returns { ok, items? }. */
+export function checkItems(list) {
+  if (!Array.isArray(list) || list.length === 0 || list.length > LIMITS.itemsMax) return { ok: false };
+  const merged = new Map();
+  for (const item of list) {
+    const id = Number(item && item.id);
+    const quantity = Number(item && item.quantity);
+    if (!Number.isSafeInteger(id) || id <= 0) return { ok: false };
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > LIMITS.quantityMax) return { ok: false };
+    merged.set(id, Math.min(LIMITS.quantityMax, (merged.get(id) || 0) + quantity));
+  }
+  return { ok: true, items: [...merged].map(([id, quantity]) => ({ id, quantity })) };
+}
+
 /** Validates the whole request body. Returns { ok, field?, message?, value? }. */
 export function checkOrder(body) {
   if (!body || typeof body !== 'object') return { ok: false, message: 'invalid' };
@@ -66,17 +80,8 @@ export function checkOrder(body) {
   const address = checkAddress(body.address);
   if (!address.ok) return { ok: false, field: 'address', message: address.message };
 
-  if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > LIMITS.itemsMax) {
-    return { ok: false, message: 'items' };
-  }
-  const merged = new Map();
-  for (const item of body.items) {
-    const id = Number(item && item.id);
-    const quantity = Number(item && item.quantity);
-    if (!Number.isSafeInteger(id) || id <= 0) return { ok: false, message: 'items' };
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > LIMITS.quantityMax) return { ok: false, message: 'items' };
-    merged.set(id, Math.min(LIMITS.quantityMax, (merged.get(id) || 0) + quantity));
-  }
+  const items = checkItems(body.items);
+  if (!items.ok) return { ok: false, message: 'items' };
 
   const attemptId = typeof body.attemptId === 'string' && /^[\w-]{6,80}$/.test(body.attemptId) ? body.attemptId : '';
   const zone = body.deliveryZone === 'inside' ? 'inside' : 'outside';
@@ -88,7 +93,7 @@ export function checkOrder(body) {
       phone: phone.value,
       phoneLocal: phone.local,
       address: address.value,
-      items: [...merged].map(([id, quantity]) => ({ id, quantity })),
+      items: items.items,
       attemptId,
       zone,
       honeypot: clean(body.website),

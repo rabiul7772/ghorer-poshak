@@ -7,7 +7,10 @@
   (chest, thigh, leg opening) is the full measurement around, not the flat/half measurement.
 
   @param {string} type - Lower-cased product type (pant / shirt / t-shirt)
-  @param {boolean} [full_sleeve] - T-shirts only: the product is full sleeve, so the short-sleeve length column is left out
+  @param {boolean} [full_sleeve] - T-shirts only: the product is full sleeve. Shows chest and length only, marked as
+    approximate: the shop has not measured these pieces, so the rows are the usual figures of Bangladeshi sellers
+    for M/L/XL full-sleeve tees (lower end, so nobody is told a size is roomier than it is). Replace with real
+    measurements when the shop has them.
 
   @example
   {% render 'rcb-product-size-table', type: 'pant' %}
@@ -24,9 +27,9 @@
     assign rows = 'M|39|27|7.5|17.5,L|41|28|8|18,XL|43|29|8.5|18.5,XXL|45|30|9|19'
     assign tip = 'বুক = টি-শার্টের বুকের চারপাশের মাপ। আপনার বুকের মাপের সাথে ২–৩ ইঞ্চি যোগ করে সাইজ বাছুন।'
     if full_sleeve
-      # the sleeve column above is the short-sleeve length; it does not apply to full-sleeve tees
-      assign head = 'সাইজ,বুক,লম্বা,কাঁধ'
-      assign rows = 'M|39|27|17.5,L|41|28|18,XL|43|29|18.5,XXL|45|30|19'
+      assign head = 'সাইজ,বুক,লম্বা'
+      assign rows = 'M|38|27,L|40|28,XL|42|29'
+      assign tip = 'এগুলো আনুমানিক মাপ, ১ ইঞ্চি কমবেশি হতে পারে। বুক = টি-শার্টের বুকের চারপাশের মাপ। আপনার বুকের মাপের সাথে ২–৩ ইঞ্চি যোগ করে সাইজ বাছুন। হাতা ফুল, কবজি পর্যন্ত।'
     endif
   else
     # size | collar | chest (around) | length | sleeve (full) | shoulder

@@ -48,9 +48,17 @@ beforeEach(() => {
           id: gid,
           title: n === 1 ? 'Default Title' : 'L',
           sku: 'SKU' + n,
-          price: n === 1 ? '1250.00' : '450.00',
+          price: n === 1 ? '1250.00' : n >= 11 && n <= 14 ? '390.00' : '450.00',
           availableForSale: n !== 3,
-          product: { id: 'gid://shopify/Product/' + n, title: 'পণ্য ' + n, status: 'ACTIVE', vendor: 'Ghorer Poshak' },
+          product: {
+            id: 'gid://shopify/Product/' + n,
+            title: 'পণ্য ' + n,
+            status: 'ACTIVE',
+            vendor: 'Ghorer Poshak',
+            // Variants 11-14 are tees priced 390 that share one combo group (350 each from 2 pieces).
+            comboGroup: n >= 11 && n <= 14 ? { value: 'waffle-full-sleeve' } : null,
+            comboPrice: n >= 11 && n <= 14 ? { value: '350' } : null,
+          },
         };
       });
       return new Response(JSON.stringify({ data: { nodes } }), { status: 200 });
@@ -225,4 +233,38 @@ test('token is fetched once and cached', async () => {
   await worker.fetch(post(good({ attemptId: 'p2_t1' })), env);
   await worker.fetch(post(good({ attemptId: 'p2_t2', phone: '01812345678' })), env);
   assert.equal(calls.filter((c) => c.url.endsWith('/admin/oauth/access_token')).length, 1);
+});
+
+test('one combo piece is charged the normal price', async () => {
+  const data = await (await worker.fetch(post(good({ items: [{ id: 11, quantity: 1 }] })), env)).json();
+  assert.equal(data.total, 390 + 80);
+  const order = orderCall().body.variables.order;
+  assert.equal(order.lineItems[0].priceSet.shopMoney.amount, '390.00');
+  assert.ok(!order.tags.includes('combo'));
+});
+
+test('two or more pieces from one combo group cost the combo price each, across products and sizes', async () => {
+  const two = await (await worker.fetch(post(good({ items: [{ id: 11, quantity: 2 }] })), env)).json();
+  assert.equal(two.total, 700 + 80);
+
+  calls.length = 0;
+  const mixed = good({ attemptId: 'p2_test-attempt-2', items: [{ id: 11, quantity: 1 }, { id: 12, quantity: 1 }, { id: 13, quantity: 1 }, { id: 1, quantity: 1 }] });
+  const three = await (await worker.fetch(post(mixed, ORIGIN, '2.2.2.2'), env)).json();
+  assert.equal(three.total, 1050 + 1250 + 80);
+  const order = orderCall().body.variables.order;
+  assert.deepEqual(order.lineItems.map((l) => l.priceSet.shopMoney.amount), ['350', '350', '350', '1250.00']);
+  assert.ok(order.tags.includes('combo'));
+  assert.ok(order.note.includes('ছাড় 120 টাকা'));
+  assert.deepEqual(order.customAttributes.find((a) => a.key === 'কম্বো ছাড়'), { key: 'কম্বো ছাড়', value: '120 টাকা' });
+});
+
+test('/quote prices the items like /order without creating an order', async () => {
+  const req = new Request('https://w.example/quote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: ORIGIN, 'CF-Connecting-IP': '3.3.3.3' },
+    body: JSON.stringify({ items: [{ id: 11, quantity: 1 }, { id: 14, quantity: 2 }, { id: 2, quantity: 1 }] }),
+  });
+  const data = await (await worker.fetch(req, env)).json();
+  assert.deepEqual(data, { ok: true, subtotal: 1050 + 450, comboSaved: 120 });
+  assert.equal(orderCall(), undefined);
 });

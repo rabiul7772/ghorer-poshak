@@ -1,5 +1,5 @@
 {%- comment -%}
-  Ghorer Poshak cart: bag lines, delivery-area choice, optional discount ladder and the one-page
+  Ghorer Poshak cart: bag lines, delivery-area choice, combo price, optional discount ladder and the one-page
   Cash-on-Delivery order form. Behaviour lives in assets/rcb-cart.js (quantity / delivery updates via
   the Section Rendering API) and assets/rcb-order.js (order form). With no order server configured,
   snippets/rcb-cart-checkout.liquid sends the buyer to Shopify checkout instead.
@@ -66,8 +66,46 @@
   endif
   assign next_index = earned | plus: 1
 
+  comment
+    Combo price: 2+ pieces from one combo group (product metafields custom.combo_group and
+    custom.combo_price) cost the combo price each. Only the order server charges it
+    (order-worker/src/combo.js does the same sum), so it is skipped when Shopify checkout is used.
+  endcomment
+  assign combo_off = 0
+  assign combo_hint_price = 0
+  assign combo_seen = '|'
   if endpoint != blank
-    assign discount_taka = tier_off
+    for item in cart.items
+      assign group = item.product.metafields.custom.combo_group.value | strip
+      assign group_price = item.product.metafields.custom.combo_price.value | default: 0
+      assign needle = '|' | append: group | append: '|'
+      if group == blank or group_price <= 0 or combo_seen contains needle
+        continue
+      endif
+      assign combo_seen = combo_seen | append: group | append: '|'
+      assign pieces = 0
+      assign saved = 0
+      for other in cart.items
+        assign other_group = other.product.metafields.custom.combo_group.value | strip
+        assign other_price = other.product.metafields.custom.combo_price.value | default: 0
+        if other_group == group and other_price > 0
+          assign pieces = pieces | plus: other.quantity
+          assign unit_off = other.original_price | divided_by: 100 | minus: other_price
+          if unit_off > 0
+            assign saved = other.quantity | times: unit_off | plus: saved
+          endif
+        endif
+      endfor
+      if pieces >= 2
+        assign combo_off = combo_off | plus: saved
+      elsif combo_hint_price == 0
+        assign combo_hint_price = group_price
+      endif
+    endfor
+  endif
+
+  if endpoint != blank
+    assign discount_taka = tier_off | plus: combo_off
     assign goods_taka = items_taka
   else
     assign discount_taka = cart.total_discount | divided_by: 100
@@ -237,9 +275,16 @@
               <span>{{ goods_taka | times: 100 | money_without_trailing_zeros }}</span>
             </div>
 
+            {%- if combo_hint_price > 0 -%}
+              {%- assign combo_two = combo_hint_price | times: 2 -%}
+              <p class="rcbk-combo">
+                আরও ১টা নিলে কম্বো দাম: <b>২টা {% render 'rcb-cart-taka', amount: combo_two %} টাকা</b> (প্রতিটা {% render 'rcb-cart-taka', amount: combo_hint_price %} টাকা)
+              </p>
+            {%- endif -%}
+
             {%- if discount_taka > 0 -%}
               <div class="rcb-offer__row rcbk-sum__tier">
-                <span>ডিসকাউন্ট</span>
+                <span>{% if combo_off > 0 and tier_off == 0 %}কম্বো ছাড়{% else %}ডিসকাউন্ট{% endif %}</span>
                 <span>−{{ discount_taka | times: 100 | money_without_trailing_zeros }}</span>
               </div>
             {%- endif -%}

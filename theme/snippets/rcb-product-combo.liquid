@@ -1,0 +1,63 @@
+{%- doc -%}
+  Combo price note for a product whose metafields custom.combo_group and custom.combo_price are set:
+  taking 2 or more pieces from the same combo group costs the combo price each. Prints nothing when
+  the product has no combo, the combo price is not below the normal price, or the one-page order
+  server is off (Shopify checkout does not know the combo).
+  The sum itself is done in sections/rcb-cart.liquid (shown) and order-worker/src/combo.js (charged).
+
+  @param {object} product - The product
+  @param {number} price - Normal unit price in cents
+
+  @example
+  {% render 'rcb-product-combo', product: product, price: current_variant.price %}
+{%- enddoc -%}
+{%- liquid
+  assign combo_group = product.metafields.custom.combo_group.value | strip
+  assign combo_price = product.metafields.custom.combo_price.value | default: 0
+  assign unit = price | divided_by: 100
+  assign endpoint = settings.rcb_order_endpoint | strip
+-%}
+{%- if combo_group != blank and combo_price > 0 and combo_price < unit and endpoint != blank -%}
+  {%- liquid
+    assign two = combo_price | times: 2
+    assign three = combo_price | times: 3
+  -%}
+  <p class="rcb-combo">
+    <b class="rcb-combo__tag">কম্বো অফার</b>
+    <span>২টা নিলে <b>{% render 'rcb-cart-taka', amount: two %} টাকা</b>, ৩টা নিলে <b>{% render 'rcb-cart-taka', amount: three %} টাকা</b>। রং ও সাইজ মিলিয়ে নিতে পারবেন।</span>
+  </p>
+{%- endif -%}
+
+{% stylesheet %}
+  .rcb-combo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.125rem 0.5rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--rcb-gold);
+    border-radius: 8px;
+    background: var(--rcb-gold-soft);
+    color: var(--rcb-ink);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .rcb-combo b {
+    font-weight: 700;
+  }
+
+  .rcb-combo span b {
+    color: var(--rcb-maroon);
+  }
+
+  /* Product page: sits right under the price in the mobile order of .rcbl-shell. */
+  .rcbl-shell > .rcbl-col-sidebar > .rcb-combo {
+    order: 3;
+  }
+
+  .rcb-buy .rcb-combo {
+    margin-bottom: 1rem;
+  }
+{% endstylesheet %}

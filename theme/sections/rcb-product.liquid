@@ -155,6 +155,7 @@
           <s class="rcb-compare">{{ current_variant.compare_at_price | money_without_trailing_zeros }}</s>
         {%- endif -%}
       </div>
+      {%- render 'rcb-product-combo', product: product, price: current_variant.price -%}
 
       <ul class="rcb-triad">
         {%- assign sold = product.metafields.custom.sold_count.value -%}
@@ -200,6 +201,7 @@
                 </div>
               </div>
 
+              {%- render 'rcb-product-combo', product: product, price: current_variant.price -%}
               {%- if held_line -%}
                 <div class="rcb-buy__qty rcb-buy__qty--held" data-rcb-line-key="{{ held_line.key }}">
                   {%- render 'rcb-product-stepper', value: held_line.quantity, label: product.title, name: false -%}

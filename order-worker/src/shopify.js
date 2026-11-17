@@ -51,7 +51,11 @@ const VARIANTS_QUERY = `
         sku
         price
         availableForSale
-        product { id title status vendor }
+        product {
+          id title status vendor
+          comboGroup: metafield(namespace: "custom", key: "combo_group") { value }
+          comboPrice: metafield(namespace: "custom", key: "combo_price") { value }
+        }
       }
     }
   }`;
